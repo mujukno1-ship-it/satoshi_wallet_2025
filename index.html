@@ -1,229 +1,61 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>사토시의지갑</title>
-<style>
-:root { --bg:#0e1621; --panel:#111c27; --panel2:#0f1924; --text:#e8f0f7; --muted:#9fb3c8; --green:#28d07f; --red:#ff5d73; --line:#1e2a36; }
-*{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Apple SD Gothic Neo,Noto Sans KR,sans-serif}
-.wrap{max-width:1250px;margin:28px auto;padding:0 16px}
-.title{font-weight:800;font-size:28px;margin-bottom:12px}
-.server{float:right;font-size:12px;color:var(--muted)}
-.panel{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line);border-radius:14px;padding:16px}
-.tabs{display:flex;gap:8px;margin-bottom:10px}
-.tab{padding:8px 14px;border-radius:10px;border:1px solid var(--line);background:#0c1420;cursor:pointer}
-.tab.active{background:#0a3a55;border-color:#135c87}
-.search{display:flex;gap:8px;margin:10px 0}
-.search input{flex:1;padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:#0b1621;color:#eaf4ff}
-.btn{padding:12px 16px;border-radius:12px;border:1px solid var(--line);background:#0c3450;color:#d8f3ff;cursor:pointer}
-.grid{display:grid;grid-template-columns:repeat(10,1fr);gap:8px;margin-top:10px;font-size:12px;color:#bcd0e4}
-.grid div{padding:8px;border:1px dashed transparent;border-radius:10px}
-.list{background:#0b1520;border:1px solid var(--line);border-radius:14px;padding:14px}
-.item{display:flex;justify-content:space-between;padding:8px 4px;border-bottom:1px dashed #172433}
-.item:last-child{border-bottom:none}
-.pos{color:var(--green);font-weight:700}
-.neg{color:var(--red);font-weight:700}
-.muted{color:#7f99b4}
-.footer{margin-top:10px;color:#6f8aa6;font-size:11px}
-code#server-text{color:#a6d4ff}
-.badge{display:inline-block;padding:2px 8px;border-radius:999px;background:#0e2031;border:1px solid #1a3147;color:#99bbd2;font-size:11px;margin-left:6px}
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>사토시의지갑</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.iamport.kr/v1/iamport.js"></script>
 </head>
 <body>
-<div class="wrap">
-  <div class="title">사토시의지갑
-    <span class="server">서버: <code id="server-text"></code></span>
-  </div>
-
-  <div class="panel">
-    <div class="tabs">
-      <button class="tab active" data-ex="upbit">업비트</button>
-      <button class="tab" data-ex="bithumb">빗썸</button>
-      <span class="badge" id="last-updated">—</span>
-    </div>
-
-    <div class="search">
-      <input id="q" placeholder="코인명/심볼/시장 (예: 비트코인, BTC, KRW-BTC, 리플)" autocomplete="off" />
-      <button class="btn" id="btn-search">검색</button>
-    </div>
-
-    <div id="result" class="grid">
-      <div>기준봉</div><div>시장상태</div><div>위험도</div><div>상승 예상</div><div>하락 예상</div>
-      <div>매수1</div><div>매수2</div><div>매도1</div><div>매도2</div><div>손절</div>
-    </div>
-  </div>
-
-  <div style="display:flex;gap:16px;margin-top:18px">
-    <div style="flex:1">
-      <div class="panel">
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <div>· 실시간 급등 (업비트)</div>
-          <div class="muted" id="clock-upbit">—</div>
-        </div>
-        <div class="list" id="list-upbit"></div>
+  <!-- 상단 헤더 -->
+  <header class="site-header">
+    <div class="brand">
+      <!-- 심플 로고(SVG) -->
+      <svg class="logo" width="28" height="28" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M3 7a3 3 0 0 1 3-3h8.5a3 3 0 0 1 2.12.88l2.5 2.5A3 3 0 0 1 20 9.5V17a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V7z" fill="currentColor" opacity=".2"/>
+        <path d="M18 8h-3a2 2 0 0 1-2-2V3" stroke="currentColor" stroke-width="1.5" fill="none"/>
+        <circle cx="12" cy="13" r="4.2" stroke="currentColor" stroke-width="1.6" fill="none"/>
+        <text x="12" y="14.5" text-anchor="middle" font-size="6" fill="currentColor">₿</text>
+      </svg>
+      <div class="title">
+        <strong>사토시의지갑</strong>
+        <span class="subtitle">SatoshiWallet • Smart Crypto Radar</span>
       </div>
     </div>
-    <div style="flex:1">
-      <div class="panel">
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <div>· 실시간 급등 (빗썸)</div>
-          <div class="muted" id="clock-bithumb">—</div>
-        </div>
-        <div class="list" id="list-bithumb"></div>
+    <nav class="nav">
+      <a href="members.html" class="nav-link">회원 전용</a>
+    </nav>
+  </header>
+
+  <main class="wrap">
+    <!-- 테스트 배지 -->
+    <p class="badge-test">🧪 <strong>테스트 모드</strong> — 실제 결제는 연결 안 됨</p>
+
+    <p class="lead">코인 시장을 분석하고 급등 신호를 감지하는 스마트 플랫폼</p>
+
+    <div class="card">
+      <h2>멤버십 안내</h2>
+      <ul class="list">
+        <li>🔒 유료 회원만 전용 페이지 접근</li>
+        <li>⚡ 급등 코인 실시간 레이더</li>
+        <li>🎯 매수·매도 타점 제공 (풀세트 알고리즘)</li>
+      </ul>
+
+      <div class="actions">
+        <button id="payBtn" class="btn btn-primary">결제하고 바로 입장하기</button>
+        <a class="btn ghost" href="members.html">(테스트) 잠금 확인</a>
       </div>
     </div>
-  </div>
 
-  <div class="footer">※ 정보 제공/교육용, 거래 책임은 이용자에게 있습니다.</div>
-</div>
-<script>
-setInterval(() => {
-  fetch(window.location.href, { cache: "reload" })
-    .then(() => console.log("🔄 실시간 데이터 갱신 완료"))
-    .catch(err => console.error("⚠️ 갱신 오류:", err));
-}, 1000);
-</script>
+    <footer>
+      <small>※ 테스트 단계: 결제는 샌드박스(가짜 결제)로 연습하는 용도입니다.</small>
+    </footer>
+  </main>
 
-<script>
-/* ---------- 0) 공통 ---------- */
-document.getElementById('server-text').textContent = location.origin;
-const API_UPBIT = '/api/upbit';
-const API_BITHUMB = '/api/bithumb';
+  <!-- (선택) 팝업 차단 안내 토스트 -->
+  <div id="popupTip" class="toast" style="display:none;">팝업이 차단되면 주소창 오른쪽 아이콘에서 허용을 눌러주세요.</div>
 
-const tabs = document.querySelectorAll('.tab');
-let EX = 'upbit';
-tabs.forEach(t=>t.addEventListener('click',()=>{
-  tabs.forEach(x=>x.classList.remove('active'));
-  t.classList.add('active'); EX = t.dataset.ex;
-}));
-
-/* ---------- 1) 한글명 매핑 로더(신규) ---------- */
-// 기본 내장(최소 안전셋) — 서버에서 한글명이 오면 그걸 최우선 사용
-const BUILTIN_KO = {
-  "BTC":"비트코인","ETH":"이더리움","BCH":"비트코인캐시","ETC":"이더리움클래식","XRP":"리플",
-  "DOGE":"도지코인","SOL":"솔라나","ADA":"에이다","SHIB":"시바이누","CELO":"셀로",
-  "API3":"에이피아이쓰리","CAKE":"팬케이크스왑","BNB":"바이낸스코인","ZETA":"제타","LISTA":"리스타",
-  "NFT":"엔에프티","SOON":"순",
-  "XTER":"엑스터","GHX":"지에이치엑스","ROA":"로아","POLA":"폴라리스쉐어","EPT":"이피티",
-  "SOFI":"소피","BLUE":"블루","THE":"더"
-};
-let NAME_KR = {...BUILTIN_KO}; // fetch 성공 시 merge
-
-async function loadKoMap(){
-  try{
-    const r = await fetch('/symbols_ko.json', {cache:'no-store'});
-    if(r.ok){
-      const j = await r.json();
-      NAME_KR = {...BUILTIN_KO, ...j};
-    }
-  }catch(e){ /* 파일 없어도 무시 */ }
-}
-function koNameByRow(row){
-  // 서버가 한글 필드를 줄 경우 최우선 사용
-  const k = row?.korean || row?.korean_name || row?.korName;
-  if(k) return k;
-  // 그 외 심볼 유추
-  const sym = String(row?.symbol || row?.code || row?.market || '').replace(/^KRW-/,'').toUpperCase();
-  return NAME_KR[sym] || sym || '-';
-}
-
-/* ---------- 2) 검색 ---------- */
-const qEl = document.getElementById('q');
-document.getElementById('btn-search').addEventListener('click', doSearch);
-qEl.addEventListener('keydown', e=>{ if(e.key==='Enter') doSearch(); });
-
-function fmtp(v){const n=Number(v)||0;return (n>=0?'+':'')+n.toFixed(2)+'%';}
-function fmtn(v){
-  if(v===undefined||v===null||v==='') return '—';
-  const n=Number(v); if(Number.isNaN(n)) return String(v);
-  return n>=1000?n.toLocaleString('ko-KR'):
-         n>=100?n.toLocaleString('ko-KR',{maximumFractionDigits:1}):
-         n>=10?n.toLocaleString('ko-KR',{maximumFractionDigits:2}):
-                n.toLocaleString('ko-KR',{maximumFractionDigits:3});
-}
-function renderResult(obj){
-  const vals={
-    base:obj.base||obj.timeframe||'—',
-    market:obj.marketStatus||obj.trend||'—',
-    risk:obj.risk ?? obj.riskScore ?? '—',
-    up:fmtp(obj.upPct ?? obj.up || 0),
-    down:fmtp(obj.downPct ?? obj.down || 0),
-    buy1:fmtn(obj.buy1 ?? obj.bid1),
-    buy2:fmtn(obj.buy2 ?? obj.bid2),
-    sell1:fmtn(obj.sell1 ?? obj.ask1),
-    sell2:fmtn(obj.sell2 ?? obj.ask2),
-    cut:fmtn(obj.stop ?? obj.cut)
-  };
-  const grid=document.getElementById('result');
-  grid.innerHTML='';
-  ['base','market','risk','up','down','buy1','buy2','sell1','sell2','cut'].forEach(k=>{
-    const d=document.createElement('div');
-    d.textContent=vals[k];
-    if(k==='up' && Number(vals[k])>0) d.style.color='var(--green)';
-    if(k==='down' && String(vals[k]).startsWith('-')) d.style.color='var(--red)';
-    grid.appendChild(d);
-  });
-}
-async function doSearch(){
-  const raw=qEl.value.trim();
-  if(!raw) return;
-  // 간단 정규화
-  const s = raw.toUpperCase().replace(/\s+/g,'');
-  const norm = /^KRW-[A-Z0-9]+$/.test(s) ? s : (s.startsWith('KRW-')?s:'KRW-'+s);
-  const url = EX==='upbit' ? `${API_UPBIT}?q=${encodeURIComponent(norm)}`
-                           : `${API_BITHUMB}?q=${encodeURIComponent(norm)}`;
-  try{
-    const r = await fetch(url, {headers:{'accept':'application/json'}});
-    const j = await r.json();
-    const first = j.result || j.data || j || {};
-    renderResult(first);
-  }catch(e){
-    alert('검색 오류: '+(e?.message||e));
-  }
-}
-
-/* ---------- 3) 급등 리스트 ---------- */
-function renderRiseList(el, arr){
-  el.innerHTML='';
-  if(!Array.isArray(arr)||!arr.length){ el.innerHTML='<div class="muted">데이터 없음</div>'; return; }
-  arr.slice(0,20).forEach(row=>{
-    const name = koNameByRow(row);
-    const chg = Number(row.change || row.chg || row.pct || 0);
-    const div = document.createElement('div');
-    div.className='item';
-    div.innerHTML=`<div>${name}</div><div class="${chg>=0?'pos':'neg'}">${(chg>=0?'+':'')}${chg.toFixed(2)}%</div>`;
-    el.appendChild(div);
-  });
-}
-
-async function refreshLists(){
-  try{
-    const [u,b] = await Promise.allSettled([
-      fetch(API_UPBIT, {headers:{'accept':'application/json'}}),
-      fetch(API_BITHUMB, {headers:{'accept':'application/json'}})
-    ]);
-    if(u.status==='fulfilled'){
-      const uj=await u.value.json();
-      renderRiseList(document.getElementById('list-upbit'), uj.top||uj.data||uj||[]);
-      document.getElementById('clock-upbit').textContent=new Date().toLocaleTimeString('ko-KR');
-    }
-    if(b.status==='fulfilled'){
-      const bj=await b.value.json();
-      renderRiseList(document.getElementById('list-bithumb'), bj.top||bj.data||bj||[]);
-      document.getElementById('clock-bithumb').textContent=new Date().toLocaleTimeString('ko-KR');
-    }
-    document.getElementById('last-updated').textContent='업데이트: '+new Date().toLocaleTimeString('ko-KR');
-  }catch(e){ /* 조용히 스킵 */ }
-}
-
-async function init(){
-  await loadKoMap();    // ⬅️ 한글 사전 먼저 로드
-  refreshLists();
-  setInterval(refreshLists, 3000); // 3초 폴링(원하면 1초로 변경)
-}
-init();
-</script>
+  <script src="script.js"></script>
 </body>
 </html>

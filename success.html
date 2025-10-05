@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>결제 성공 – 사토시의지갑</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="wrap">
+    <h1>✅ 결제가 완료되었습니다!</h1>
+    <p>이제 <a href="members.html">회원 전용 페이지</a>에 입장할 수 있습니다.</p>
+    <p>잠금이 안 풀리면 아래 버튼을 눌러주세요.</p>
+    <button id="activate">잠금 해제</button>
+    <p style="margin-top:16px;"><a href="index.html">← 메인으로 돌아가기</a></p>
+  </div>
+
+  <script>
+    // 결제 성공 시(테스트용) 잠금 해제 표식 저장
+    document.getElementById('activate').addEventListener('click', () => {
+      localStorage.setItem('fullset_paid', 'yes');
+      location.href = 'members.html';
+    });
+  </script>
+</body>
+</html>

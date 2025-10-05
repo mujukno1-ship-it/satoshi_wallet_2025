@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>회원 전용 - 사토시의지갑</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="wrap">
+    <h1>회원 전용 대시보드</h1>
+
+    <!-- 🔒 결제 전 잠금 상태 -->
+    <div id="gate" class="locked">
+      <p>🔒 이 페이지는 <strong>유료 회원</strong>만 접근할 수 있습니다.</p>
+      <p>✅ 결제를 완료했다면 아래 버튼을 눌러 잠금을 해제하세요.</p>
+      <button id="unlockBtn">잠금 해제</button>
+      <p><a href="index.html">← 메인으로 돌아가기</a></p>
+    </div>
+
+    <!-- ✅ 결제 후 대시보드 -->
+    <div id="content" class="hidden">
+      <div class="grid">
+        <div class="panel">
+          <h2>📈 급등 레이더(예시)</h2>
+          <ul>
+            <li>비트코인(BTC) - 박스권 상단 돌파 시점</li>
+            <li>이더리움(ETH) - 추세 전환 관찰</li>
+            <li>리플(XRP) - 거래량 급증 시 스캘핑</li>
+          </ul>
+        </div>
+
+        <div class="panel">
+          <h2>🎯 타점 체크리스트(예시)</h2>
+          <ol>
+            <li>진입: 전일 고점 돌파 + 거래량 증가</li>
+            <li>손절: ATR × 1.5 하단 이탈</li>
+            <li>익절: +2R, +3R 분할</li>
+          </ol>
+        </div>
+
+        <div class="panel">
+          <h2>⚠️ 리스크(예시)</h2>
+          <ul>
+            <li>거시 이벤트 주간: 포지션 축소 권고</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- ✅ 테스트용 잠금 초기화 버튼 -->
+      <button id="relock" style="margin-top:16px;">🔒 잠금 초기화(테스트용)</button>
+      <p><a href="index.html">← 메인으로 돌아가기</a></p>
+    </div>
+  </div>
+
+  <!-- 스크립트 -->
+  <script>
+    const unlockBtn = document.getElementById('unlockBtn');
+    const gate = document.getElementById('gate');
+    const content = document.getElementById('content');
+
+    // 페이지 로드시 잠금 상태 확인
+    if (localStorage.getItem('fullset_paid') === 'yes') {
+      gate.style.display = 'none';
+      content.classList.remove('hidden');
+    }
+
+    // 잠금 해제 버튼 클릭 시
+    unlockBtn.addEventListener('click', () => {
+      const ok = confirm('결제가 완료되었나요? 완료됐다면 확인을 눌러주세요.');
+      if (ok) {
+        localStorage.setItem('fullset_paid', 'yes');
+        alert('✅ 잠금이 해제되었습니다!');
+        gate.style.display = 'none';
+        content.classList.remove('hidden');
+      }
+    });
+
+    // 잠금 초기화 버튼 클릭 시
+    document.getElementById('relock').addEventListener('click', () => {
+      localStorage.removeItem('fullset_paid');
+      alert('🔒 잠금이 초기화되었습니다. 페이지를 새로고침합니다.');
+      location.reload();
+    });
+  </script>
+</body>
+</html>
