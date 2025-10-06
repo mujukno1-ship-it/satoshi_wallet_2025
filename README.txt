@@ -1,9 +1,5 @@
-사토시의지갑 v36 SAFE PLUS (1초 갱신)
-- 기존기능 유지 + 새로운기능 추가(빗썸 프록시) + CORS 오류수정
-- 업비트/빗썸 모두 1초마다 갱신 (config.js: INTERVAL_*_MS=1000)
-
-업로드 후 테스트:
-- /api/upbit?fn=markets
-- /api/upbit?fn=ticker&market=KRW-BTC
-- /api/upbit?fn=top&n=10
-- /api/bithumb?fn=top&n=10
+사토시의지갑 풀세트∞ v37 — 한 번에 완료
+- 기존기능 유지 + 새로운기능 추가 + 오류수정
+- 업비트/빗썸 1초 갱신 + AI 타점(매수/매도/위험/정확도) + 급등/급락 감지
+설치: 압축 풀고 파일들 업로드 → 배포 후 {API_BASE}/api/... 엔드포인트로 동작 확인
+주의: 정보 제공용, 거래 책임은 사용자에게 있습니다.
