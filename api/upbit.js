@@ -1,26 +1,53 @@
-
-// api/upbit.js
+// api/upbit.js  — Vercel Serverless Function (CORS OK)
 export default async function handler(req, res) {
-  const { market } = req.query; // 예: KRW-BTC
+  // --- CORS ---
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET,OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  if (req.method === "OPTIONS") { res.status(204).end(); return; }
+
+  const { fn = "ticker", market = "KRW-BTC", minutes = "1", count = "1", n = "10" } = req.query;
+  const BASE = "https://api.upbit.com/v1";
+  const headers = { Accept: "application/json" };
 
   try {
-    const response = await fetch(`https://api.upbit.com/v1/ticker?markets=${market}`);
-    const data = await response.json();
-
-    if (!data || data.error) {
-      throw new Error('업비트 API 호출 실패');
+    if (fn === "markets") {
+      const r = await fetch(`${BASE}/market/all?isDetails=false`, { headers });
+      const data = await r.json();
+      const krw = data.filter(x => x.market.startsWith("KRW-"));
+      res.setHeader("Cache-Control", "s-maxage=5, stale-while-revalidate=25");
+      return res.status(200).json({ ok: true, markets: krw });
     }
 
-    const ticker = data[0];
-    res.status(200).json({
-      market: ticker.market,
-      trade_price: ticker.trade_price,
-      high_price: ticker.high_price,
-      low_price: ticker.low_price,
-      acc_trade_price_24h: ticker.acc_trade_price_24h,
-    });
-  } catch (error) {
-    console.error("⚠️ 업비트 API 오류:", error);
-    res.status(500).json({ error: "업비트 API 호출 실패" });
+    if (fn === "ticker") {
+      const r = await fetch(`${BASE}/ticker?markets=${encodeURIComponent(market)}`, { headers });
+      const data = await r.json();
+      res.setHeader("Cache-Control", "no-store");
+      return res.status(200).json({ ok: true, data });
+    }
+
+    if (fn === "candles") {
+      const url = `${BASE}/candles/minutes/${minutes}?market=${encodeURIComponent(market)}&count=${count}`;
+      const r = await fetch(url, { headers });
+      const data = await r.json();
+      res.setHeader("Cache-Control", "no-store");
+      return res.status(200).json({ ok: true, data });
+    }
+
+    if (fn === "top") {
+      // 24h 거래대금 상위 N개 (KRW 마켓)
+      const list = await (await fetch(`${BASE}/market/all?isDetails=false`, { headers })).json();
+      const krw = list.filter(x => x.market.startsWith("KRW-")).map(x => x.market).slice(0, 150);
+      const tickers = await (await fetch(`${BASE}/ticker?markets=${krw.join(",")}`, { headers })).json();
+      const sorted = tickers
+        .sort((a, b) => (b.acc_trade_price_24h || 0) - (a.acc_trade_price_24h || 0))
+        .slice(0, Number(n) || 10);
+      res.setHeader("Cache-Control", "s-maxage=5, stale-while-revalidate=25");
+      return res.status(200).json({ ok: true, data: sorted });
+    }
+
+    return res.status(400).json({ ok: false, error: "unknown fn" });
+  } catch (e) {
+    return res.status(500).json({ ok: false, error: String(e) });
   }
 }
