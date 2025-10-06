@@ -1,6 +1,6 @@
-// api/upbit.js  — Vercel Serverless Function (CORS OK)
+// api/upbit.js — Vercel Serverless Function (CORS 해결)
 export default async function handler(req, res) {
-  // --- CORS ---
+  // CORS
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET,OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
@@ -14,7 +14,7 @@ export default async function handler(req, res) {
     if (fn === "markets") {
       const r = await fetch(`${BASE}/market/all?isDetails=false`, { headers });
       const data = await r.json();
-      const krw = data.filter(x => x.market.startsWith("KRW-"));
+      const krw = data.filter(x => x.market && x.market.startsWith("KRW-"));
       res.setHeader("Cache-Control", "s-maxage=5, stale-while-revalidate=25");
       return res.status(200).json({ ok: true, markets: krw });
     }
@@ -35,9 +35,9 @@ export default async function handler(req, res) {
     }
 
     if (fn === "top") {
-      // 24h 거래대금 상위 N개 (KRW 마켓)
+      // KRW 마켓 24h 거래대금 상위 N개
       const list = await (await fetch(`${BASE}/market/all?isDetails=false`, { headers })).json();
-      const krw = list.filter(x => x.market.startsWith("KRW-")).map(x => x.market).slice(0, 150);
+      const krw = list.filter(x => x.market && x.market.startsWith("KRW-")).map(x => x.market).slice(0, 150);
       const tickers = await (await fetch(`${BASE}/ticker?markets=${krw.join(",")}`, { headers })).json();
       const sorted = tickers
         .sort((a, b) => (b.acc_trade_price_24h || 0) - (a.acc_trade_price_24h || 0))
