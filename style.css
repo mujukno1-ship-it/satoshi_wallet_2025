@@ -1,0 +1,9 @@
+document.addEventListener("DOMContentLoaded", () => {
+  const title = document.createElement("h1");
+  title.textContent = "사토시의지갑";
+  document.body.appendChild(title);
+
+  const info = document.createElement("p");
+  info.textContent = "업비트/빗썸 실시간 시세 연동 준비 중...";
+  document.body.appendChild(info);
+});
