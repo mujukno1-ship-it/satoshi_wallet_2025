@@ -1,6 +1,5 @@
 // api/upbit.js — Vercel Serverless Function (CORS 해결)
 export default async function handler(req, res) {
-  // CORS
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET,OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
@@ -35,7 +34,6 @@ export default async function handler(req, res) {
     }
 
     if (fn === "top") {
-      // KRW 마켓 24h 거래대금 상위 N개
       const list = await (await fetch(`${BASE}/market/all?isDetails=false`, { headers })).json();
       const krw = list.filter(x => x.market && x.market.startsWith("KRW-")).map(x => x.market).slice(0, 150);
       const tickers = await (await fetch(`${BASE}/ticker?markets=${krw.join(",")}`, { headers })).json();
