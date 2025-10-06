@@ -54,7 +54,7 @@
         <span id="sts-api" class="badge">API: -</span>
         <span id="sts-updated" class="badge">업데이트: -</span>
         <button id="btn-refresh" class="btn">🔄 새로고침</button>
-        <button id="btn-auto" class="btn sec">▶ 자동갱신 켜기(30초)</button>
+        <button id="btn-auto" class="btn sec">▶ 자동갱신 켜기(1초)</button>
       </div>
     </div>
     <div class="panel">
@@ -81,7 +81,7 @@
       <div style="margin-top:12px">
         <b>통합</b>
         <table id="mergedTop"><thead><tr><th>거래소</th><th>코인(한글)</th><th>심볼</th><th class="right">24h</th><th class="right">거래대금(24h)</th></tr></thead><tbody></tbody></table>
-        <small class="muted">10초마다 자동 갱신</small>
+        <small class="muted">1초마다 자동 갱신</small>
       </div>
     </div>
     <div class="footer">본 서비스는 투자 권유/중개/집행이 아니며, 정보 제공 및 교육 목적입니다. 거래/손실 책임은 이용자에게 있습니다.</div>
@@ -115,7 +115,6 @@ async function fetchUpbitTop(){
   }
 }
 async function fetchBithumbTop(){
-  // Proxy first
   if (CFG.ENABLE_BITHUMB_VERCEL_PROXY) {
     try{
       const r = await fetch(`${BITHUMB_API}?fn=top&n=15`, { cache:'no-store' });
@@ -126,7 +125,6 @@ async function fetchBithumbTop(){
       return list.map(v=>({ex:'빗썸',...v}));
     }catch(e){ /* fallback below */ }
   }
-  // Fallback: direct
   try{
     const r = await fetch('https://api.bithumb.com/public/ticker/ALL_KRW');
     const j = await r.json();
@@ -150,15 +148,15 @@ async function refreshAll(){
     <td>${v.ex}</td><td>${v.name}</td><td>${v.sym}</td>
     <td class="${v.chg>=0?'up':'down'}">${pfmt(v.chg)}</td><td class="right">${fmt(Math.round((v.vol||0)/1e8))} 억</td>
   </tr>`).join('');
-  $('refreshNote').textContent='10초마다 자동 갱신';
+  $('refreshNote').textContent='1초마다 자동 갱신';
   setUpdated();
 }
 btnRefresh.addEventListener('click', refreshAll);
 btnAuto.addEventListener('click', ()=>{
-  if(timer){ clearInterval(timer); timer=null; btnAuto.textContent='▶ 자동갱신 켜기(30초)'; }
-  else { timer=setInterval(refreshAll,30000); btnAuto.textContent='⏸ 자동갱신 끄기'; refreshAll(); }
+  if(timer){ clearInterval(timer); timer=null; btnAuto.textContent='▶ 자동갱신 켜기(1초)'; }
+  else { timer=setInterval(refreshAll, CFG.INTERVAL_TOP_MS || 1000); btnAuto.textContent='⏸ 자동갱신 끄기'; refreshAll(); }
 });
-(async function(){ setStatus(true,'준비'); refreshAll(); setInterval(refreshAll, 10000); })();
+(function(){ refreshAll(); setInterval(refreshAll, CFG.INTERVAL_TOP_MS || 1000); })();
 </script>
 </body>
 </html>
