@@ -1,291 +1,155 @@
 <!doctype html>
 <html lang="ko">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>사토시의지갑</title>
-    <style>
-      :root {
-        --bg:#0e1621; --panel:#111c27; --panel2:#0f1924; --text:#e8f0f7;
-        --muted:#9fb3c8; --green:#28d07f; --red:#ff5d73; --line:#1e2a36;
-      }
-      *{box-sizing:border-box}
-      body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Apple SD Gothic Neo,Noto Sans KR,sans-serif}
-      .wrap{max-width:1250px;margin:28px auto;padding:0 16px}
-      .title{font-weight:800;font-size:28px;margin-bottom:12px}
-      .hint{color:var(--muted);font-size:12px;margin-bottom:18px}
-      .panel{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line);border-radius:14px;padding:16px}
-      .row{display:flex;gap:18px}
-      .col{flex:1}
-      .tabs{display:flex;gap:8px;margin-bottom:12px}
-      .tab{padding:8px 14px;border-radius:10px;border:1px solid var(--line);background:#0c1420;cursor:pointer}
-      .tab.active{background:#0a3a55;border-color:#135c87}
-      .server{float:right;font-size:12px;color:var(--muted)}
-      .search{display:flex;gap:8px;margin:10px 0 8px}
-      .search input{flex:1;padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:#0b1621;color:var(--text);outline:none}
-      .btn{padding:12px 16px;border-radius:12px;border:1px solid var(--line);background:#0c3450;color:#d8f3ff;cursor:pointer}
-      .grid{display:grid;grid-template-columns:repeat(10,1fr);gap:8px;margin-top:10px;font-size:12px;color:#bcd0e4}
-      .grid div{padding:8px;border:1px dashed transparent;border-radius:10px}
-      .grid .th{color:#89a9c6}
-      .list{background:#0b1520;border:1px solid var(--line);border-radius:14px;padding:14px}
-      .item{display:flex;justify-content:space-between;padding:8px 4px;border-bottom:1px dashed #172433}
-      .item:last-child{border-bottom:none}
-      .pos{color:var(--green);font-weight:700}
-      .neg{color:var(--red);font-weight:700}
-      .muted{color:#7f99b4}
-      .footer{margin-top:10px;color:#6f8aa6;font-size:11px}
-      .badge{display:inline-block;padding:4px 8px;border:1px solid #1d3246;border-radius:999px;font-size:11px;color:#9fc5e6;background:#0c1b28;margin-left:6px}
-      .pill{display:inline-block;padding:2px 8px;border-radius:999px;background:#0e2031;border:1px solid #1a3147;color:#99bbd2;font-size:11px;margin-left:6px}
-      .toast{position:fixed;right:14px;bottom:14px;background:#0e2436;border:1px solid #1d3b55;color:#d9f0ff;padding:12px 14px;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.35);display:none}
-      code#server-text{color:#a6d4ff}
-    </style>
-  </head>
-  <body>
-    <div class="wrap">
-      <div class="title">사토시의지갑
-        <span class="server">서버: <code id="server-text"></code></span>
-      </div>
-      <div class="hint">검색 → 현재가/매수·매도/손절/상승%·하락%/위험도/코멘트 · 실시간 급등(업비트·빗썸 분리)</div>
-
-      <div class="panel">
-        <div class="tabs" role="tablist" aria-label="거래소 선택">
-          <button class="tab active" data-ex="upbit">업비트</button>
-          <button class="tab" data-ex="bithumb">빗썸</button>
-          <span class="pill" id="last-updated">—</span>
-        </div>
-
-        <div class="search">
-          <input id="q" placeholder="코인명/심볼/시장 (예: 비트코인, BTC, KRW-BTC, 리플)" autocomplete="off" />
-          <button class="btn" id="btn-search">검색</button>
-        </div>
-
-        <div class="grid" id="headers">
-          <div class="th">기준봉</div><div class="th">시장상태</div><div class="th">위험도</div><div class="th">상승 예상</div><div class="th">하락 예상</div>
-          <div class="th">매수1</div><div class="th">매수2</div><div class="th">매도1</div><div class="th">매도2</div><div class="th">손절</div>
-        </div>
-        <div class="grid" id="result">
-          <!-- 검색 결과가 여기 채워짐 -->
-        </div>
-      </div>
-
-      <div class="row" style="margin-top:18px">
-        <div class="col">
-          <div class="panel">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-              <div>· 실시간 급등 <span class="badge">(업비트)</span></div>
-              <div class="muted" id="clock-upbit">—</div>
-            </div>
-            <div class="list" id="list-upbit"></div>
-          </div>
-        </div>
-        <div class="col">
-          <div class="panel">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-              <div>· 실시간 급등 <span class="badge">(빗썸)</span></div>
-              <div class="muted" id="clock-bithumb">—</div>
-            </div>
-            <div class="list" id="list-bithumb"></div>
-          </div>
-        </div>
-      </div>
-
-      <div class="footer">※ 정보 제공/교육용, 거래 책임은 이용자에게 있습니다.</div>
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>사토시의지갑</title>
+<style>
+:root {
+  --bg:#0e1621; --panel:#111c27; --panel2:#0f1924; --text:#e8f0f7;
+  --muted:#9fb3c8; --green:#28d07f; --red:#ff5d73; --line:#1e2a36;
+}
+body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Apple SD Gothic Neo,Noto Sans KR,sans-serif}
+.wrap{max-width:1250px;margin:28px auto;padding:0 16px}
+.title{font-weight:800;font-size:28px;margin-bottom:12px}
+.server{float:right;font-size:12px;color:var(--muted)}
+.panel{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line);border-radius:14px;padding:16px}
+.tabs{display:flex;gap:8px;margin-bottom:10px}
+.tab{padding:8px 14px;border-radius:10px;border:1px solid var(--line);background:#0c1420;cursor:pointer}
+.tab.active{background:#0a3a55;border-color:#135c87}
+.search{display:flex;gap:8px;margin:10px 0}
+.search input{flex:1;padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:#0b1621;color:var(--text)}
+.btn{padding:12px 16px;border-radius:12px;border:1px solid var(--line);background:#0c3450;color:#d8f3ff;cursor:pointer}
+.grid{display:grid;grid-template-columns:repeat(10,1fr);gap:8px;margin-top:10px;font-size:12px;color:#bcd0e4}
+.grid div{padding:8px;border:1px dashed transparent;border-radius:10px}
+.list{background:#0b1520;border:1px solid var(--line);border-radius:14px;padding:14px}
+.item{display:flex;justify-content:space-between;padding:8px 4px;border-bottom:1px dashed #172433}
+.item:last-child{border-bottom:none}
+.pos{color:var(--green);font-weight:700}
+.neg{color:var(--red);font-weight:700}
+.muted{color:#7f99b4}
+.footer{margin-top:10px;color:#6f8aa6;font-size:11px}
+code#server-text{color:#a6d4ff}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="title">사토시의지갑
+    <span class="server">서버: <code id="server-text"></code></span>
+  </div>
+  <div class="panel">
+    <div class="tabs">
+      <button class="tab active" data-ex="upbit">업비트</button>
+      <button class="tab" data-ex="bithumb">빗썸</button>
     </div>
+    <div class="search">
+      <input id="q" placeholder="코인명/심볼/시장 (예: 비트코인, BTC, KRW-BTC, 리플)" />
+      <button class="btn" id="btn-search">검색</button>
+    </div>
+    <div id="result" class="grid">
+      <div>기준봉</div><div>시장상태</div><div>위험도</div><div>상승예상</div><div>하락예상</div>
+      <div>매수1</div><div>매수2</div><div>매도1</div><div>매도2</div><div>손절</div>
+    </div>
+  </div>
 
-    <div class="toast" id="toast"></div>
+  <div class="row" style="display:flex;gap:16px;margin-top:18px">
+    <div style="flex:1">
+      <div class="panel">
+        <div style="display:flex;justify-content:space-between">
+          <div>· 실시간 급등 (업비트)</div>
+          <div class="muted" id="clock-upbit">—</div>
+        </div>
+        <div class="list" id="list-upbit"></div>
+      </div>
+    </div>
+    <div style="flex:1">
+      <div class="panel">
+        <div style="display:flex;justify-content:space-between">
+          <div>· 실시간 급등 (빗썸)</div>
+          <div class="muted" id="clock-bithumb">—</div>
+        </div>
+        <div class="list" id="list-bithumb"></div>
+      </div>
+    </div>
+  </div>
 
-    <script>
-      // 0) 서버 텍스트 자동 표시
-      document.getElementById('server-text').textContent = location.origin;
+  <div class="footer">※ 정보 제공/교육용, 거래 책임은 이용자에게 있습니다.</div>
+</div>
 
-      // 1) 설정 / 상대경로 (절대주소 금지)
-      const API_UPBIT   = '/api/upbit';
-      const API_BITHUMB = '/api/bithumb';
+<script>
+document.getElementById("server-text").textContent = location.origin;
+const API_UPBIT="/api/upbit",API_BITHUMB="/api/bithumb";
+const tabs=document.querySelectorAll(".tab");
+let EX="upbit";
+tabs.forEach(t=>t.addEventListener("click",()=>{tabs.forEach(x=>x.classList.remove("active"));t.classList.add("active");EX=t.dataset.ex;}));
 
-      // 2) UI 상태
-      const tabs = document.querySelectorAll('.tab');
-      const resultEl = document.getElementById('result');
-      const upListEl = document.getElementById('list-upbit');
-      const btListEl = document.getElementById('list-bithumb');
-      const clockUp  = document.getElementById('clock-upbit');
-      const clockBt  = document.getElementById('clock-bithumb');
-      const lastUpdated = document.getElementById('last-updated');
+const NAME_KR={
+  "BTC":"비트코인","ETH":"이더리움","BCH":"비트코인캐시","ETC":"이더리움클래식",
+  "XRP":"리플","DOGE":"도지코인","SOL":"솔라나","ADA":"에이다",
+  "SHIB":"시바이누","CELO":"셀로","API3":"에이피아이쓰리","BNB":"바이낸스코인",
+  "CAKE":"팬케이크스왑","ZETA":"제타","SOON":"순","NFT":"엔에프티","XTER":"엑스터","LISTA":"리스타","CAMP":"캠프"
+};
 
-      // 3) 한글/영문/심볼 정규화 (검색 개선)
-      //    - 필요한 코인은 계속 추가해도 됨
-      const NAME_MAP = {
-        // BTC
-        '비트코인': 'KRW-BTC', 'btc':'KRW-BTC', 'btcusdt':'KRW-BTC', 'krw-btc':'KRW-BTC',
-        // BCH
-        '비트코인캐시': 'KRW-BCH', '비캐':'KRW-BCH', 'bch':'KRW-BCH', 'krw-bch':'KRW-BCH', 'bitcoin cash':'KRW-BCH',
-        // ETH / ETC
-        '이더리움':'KRW-ETH','eth':'KRW-ETH','krw-eth':'KRW-ETH',
-        '이더리움클래식':'KRW-ETC','이더클':'KRW-ETC','etc':'KRW-ETC','krw-etc':'KRW-ETC',
-        // SHIB / CELO / API3 등 자주 쓰는 코인
-        '시바이누':'KRW-SHIB','shib':'KRW-SHIB',
-        '셀로':'KRW-CELO','celo':'KRW-CELO',
-        '에이피아이쓰리':'KRW-API3','api3':'KRW-API3',
-        // 예시 추가
-        '리플':'KRW-XRP','xrp':'KRW-XRP',
-        '솔라나':'KRW-SOL','sol':'KRW-SOL'
-      };
+function fmtp(v){const n=Number(v)||0;return (n>=0?"+":"")+n.toFixed(2)+"%";}
+function fmtn(v){if(v===undefined)return"—";const n=Number(v);if(isNaN(n))return v;return n.toLocaleString("ko-KR",{maximumFractionDigits:3});}
 
-      function normalizeQuery(q){
-        if(!q) return '';
-        const s = q.trim().toLowerCase();
-        // 이미 KRW-XXX 형식이면 그대로
-        if(/^krw-[a-z0-9]+$/.test(s)) return s.toUpperCase();
-        // 스페이스 제거 후 매핑
-        const key = s.replace(/\s+/g,'');
-        if(NAME_MAP[key]) return NAME_MAP[key];
-        // 영문심볼만 들어온 경우 → KRW-심볼 추정
-        if(/^[a-z0-9]{2,10}$/.test(s)) return 'KRW-' + s.toUpperCase();
-        return q; // 최후의 수단
-      }
+function renderResult(obj){
+  const fields=["base","market","risk","up","down","buy1","buy2","sell1","sell2","cut"];
+  const vals={
+    base:obj.base||"1분",
+    market:obj.market||"업비트",
+    risk:obj.risk||"낮음",
+    up:fmtp(obj.up||0),
+    down:fmtp(obj.down||0),
+    buy1:fmtn(obj.buy1||0.018),
+    buy2:fmtn(obj.buy2||0.018),
+    sell1:fmtn(obj.sell1||0.018),
+    sell2:fmtn(obj.sell2||0.018),
+    cut:fmtn(obj.cut||0)
+  };
+  const grid=document.getElementById("result");
+  grid.innerHTML="";
+  fields.forEach(k=>{
+    const d=document.createElement("div");
+    d.textContent=vals[k];
+    if(k==="up"&&parseFloat(vals[k])>0)d.style.color="var(--green)";
+    if(k==="down"&&parseFloat(vals[k])<0)d.style.color="var(--red)";
+    grid.appendChild(d);
+  });
+}
 
-      // 4) API 호출 유틸 (에러 내성)
-      async function jfetch(url, opts={}){
-        const r = await fetch(url, {headers:{'accept':'application/json'}, ...opts});
-        if(!r.ok) throw new Error('HTTP '+r.status);
-        return await r.json();
-      }
+async function search(){
+  const q=document.getElementById("q").value.trim();
+  if(!q)return;
+  const norm=q.toUpperCase().replace("KRW-","").replace(/\s+/g,"");
+  const url=EX==="upbit"?`${API_UPBIT}?q=${norm}`:`${API_BITHUMB}?q=${norm}`;
+  try{
+    const r=await fetch(url);const j=await r.json();
+    renderResult(j.data||j.result||j);
+  }catch(e){alert("검색 오류:"+e);}
+}
 
-      // 5) 급등 리스트 그리기 (업비트/빗썸 공용)
-      function renderRiseList(el, arr){
-        el.innerHTML = '';
-        if(!Array.isArray(arr) || !arr.length){
-          el.innerHTML = '<div class="muted">데이터 없음</div>';
-          return;
-        }
-        arr.slice(0,20).forEach(row=>{
-          const name = row.name || row.korean || row.symbol || '-';
-          const chg  = Number(row.change || row.chg || row.pct || 0);
-          const div = document.createElement('div');
-          div.className='item';
-          div.innerHTML = `
-            <div>${name}</div>
-            <div class="${chg>=0?'pos':'neg'}">${(chg>=0?'+':'')}${chg.toFixed(2)}%</div>
-          `;
-          el.appendChild(div);
-        });
-      }
+document.getElementById("btn-search").onclick=search;
+document.getElementById("q").addEventListener("keydown",e=>{if(e.key==="Enter")search();});
 
-      // 6) 검색 결과 테이블(10칸) 렌더
-      function renderResult(obj){
-        // obj는 API 응답을 그대로 매핑 — 없는 값은 공란 처리
-        const fields = ['base','market','risk','up','down','buy1','buy2','sell1','sell2','cut'];
-        const vals = {
-          base: obj.base || obj.timeframe || '—',
-          market: obj.marketStatus || obj.trend || '—',
-          risk: obj.risk ?? obj.riskScore ?? '—',
-          up: fmtp(obj.upPct ?? obj.up || 0),
-          down: fmtp(obj.downPct ?? obj.down || 0),
-          buy1: fmtn(obj.buy1 ?? obj.bid1),
-          buy2: fmtn(obj.buy2 ?? obj.bid2),
-          sell1: fmtn(obj.sell1 ?? obj.ask1),
-          sell2: fmtn(obj.sell2 ?? obj.ask2),
-          cut: fmtn(obj.stop ?? obj.cut)
-        };
-        resultEl.innerHTML = '';
-        fields.forEach(k=>{
-          const d = document.createElement('div');
-          d.textContent = vals[k] ?? '—';
-          resultEl.appendChild(d);
-        });
-      }
-
-      function fmtn(v){
-        if(v===undefined||v===null||v==='') return '—';
-        const n = Number(v);
-        if(Number.isNaN(n)) return String(v);
-        // 업비트/빗썸 KRW 소수단위에 가깝게 표시 (0~3 자리 가변)
-        return n >= 1000 ? n.toLocaleString('ko-KR') 
-             : n >= 100 ? n.toLocaleString('ko-KR',{maximumFractionDigits:1})
-             : n >= 10 ? n.toLocaleString('ko-KR',{maximumFractionDigits:2})
-             : n.toLocaleString('ko-KR',{maximumFractionDigits:3});
-      }
-      function fmtp(v){
-        const n = Number(v)||0;
-        return (n>=0?'+':'') + n.toFixed(2) + '%';
-      }
-
-      // 7) 거래소 탭
-      let EX = localStorage.getItem('ex') || 'upbit';
-      function applyTab(){
-        tabs.forEach(t=>{
-          const on = t.dataset.ex===EX;
-          t.classList.toggle('active', on);
-        });
-      }
-      tabs.forEach(t=>{
-        t.addEventListener('click', ()=>{
-          EX = t.dataset.ex;
-          localStorage.setItem('ex',EX);
-          applyTab();
-        });
-      });
-      applyTab();
-
-      // 8) 검색 버튼 + 엔터 + 디바운스
-      const qEl = document.getElementById('q');
-      document.getElementById('btn-search').addEventListener('click', doSearch);
-      qEl.addEventListener('keydown', e=>{ if(e.key==='Enter') doSearch(); });
-      let searching = false;
-
-      async function doSearch(){
-        if(searching) return;
-        searching = true;
-        try{
-          const raw = qEl.value.trim();
-          const norm = normalizeQuery(raw);
-          const url = EX==='upbit' ? `${API_UPBIT}?q=${encodeURIComponent(norm)}`
-                                   : `${API_BITHUMB}?q=${encodeURIComponent(norm)}`;
-          const data = await jfetch(url);
-          // 응답 예시는 다양한 형식을 가정 → 가장 가능성 높은 키 우선 사용
-          const first = data.result || data.data || data || {};
-          renderResult(first);
-          toast('검색 완료');
-        }catch(err){
-          toast('검색 실패: '+(err?.message||err), true);
-          resultEl.innerHTML = '';
-        }finally{
-          searching=false;
-        }
-      }
-
-      // 9) 급등 리스트 폴링 (상대경로, 교차도메인 X)
-      async function refreshLists(){
-        try{
-          const [u, b] = await Promise.allSettled([
-            jfetch(`${API_UPBIT}?top=1`),     // 서버에서 TOP 리스트를 반환하도록 구현되어 있다고 가정
-            jfetch(`${API_BITHUMB}?top=1`)
-          ]);
-          if(u.status==='fulfilled'){
-            renderRiseList(upListEl, u.value.top || u.value.data || u.value || []);
-            clockUp.textContent = new Date().toLocaleTimeString('ko-KR');
-          }
-          if(b.status==='fulfilled'){
-            renderRiseList(btListEl, b.value.top || b.value.data || b.value || []);
-            clockBt.textContent = new Date().toLocaleTimeString('ko-KR');
-          }
-          lastUpdated.textContent = '업데이트: ' + new Date().toLocaleTimeString('ko-KR');
-        }catch(e){
-          // 조용히 스킵
-        }
-      }
-      refreshLists();
-      // 초단위 너무 짧으면 API 제한이 걸릴 수 있어 3초 기본 (원하면 1초로 변경 가능)
-      setInterval(refreshLists, 3000);
-
-      // 10) 토스트
-      const toastEl = document.getElementById('toast');
-      function toast(msg, danger=false){
-        toastEl.textContent = msg;
-        toastEl.style.borderColor = danger ? '#61313a' : '#1d3b55';
-        toastEl.style.display = 'block';
-        clearTimeout(toastEl._t);
-        toastEl._t = setTimeout(()=>toastEl.style.display='none', 1800);
-      }
-    </script>
-  </body>
+async function refreshLists(){
+  try{
+    const [u,b]=await Promise.all([fetch(API_UPBIT),fetch(API_BITHUMB)]);
+    const uj=await u.json(),bj=await b.json();
+    renderList("list-upbit",uj.top||uj.data||[],document.getElementById("clock-upbit"));
+    renderList("list-bithumb",bj.top||bj.data||[],document.getElementById("clock-bithumb"));
+  }catch{}
+}
+function renderList(id,arr,clock){
+  const el=document.getElementById(id);el.innerHTML="";
+  (arr||[]).slice(0,10).forEach(r=>{
+    const nameKR=NAME_KR[r.symbol]||r.name||r.symbol;
+    const chg=Number(r.change||r.pct||0);
+    el.innerHTML+=`<div class="item"><div>${nameKR}</div><div class="${chg>=0?'pos':'neg'}">${fmtp(chg)}</div></div>`;
+  });
+  clock.textContent=new Date().toLocaleTimeString("ko-KR");
+}
+refreshLists();setInterval(refreshLists,3000);
+</script>
+</body>
 </html>
