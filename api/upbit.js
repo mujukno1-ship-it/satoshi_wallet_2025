@@ -9,7 +9,10 @@ async function httpJSON(url, tries = 2) {
       if (r.status === 429) { await new Promise(r => setTimeout(r, 250 + Math.random()*300)); continue; }
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       return await r.json();
-    } catch (e) { lastErr = e; await new Promise(r => setTimeout(r, 150 + Math.random()*200)); }
+    } catch (e) {
+      lastErr = e;
+      await new Promise(r => setTimeout(r, 150 + Math.random()*200));
+    }
   }
   throw lastErr || new Error("fetch failed");
 }
@@ -39,11 +42,10 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, data: j?.[0] || null });
     }
 
-    // 🔥 모든 KRW-마켓 티커 한번에 (실시간 급등용)
+    // 모든 KRW 마켓 실시간(급등용)
     if (fn === "tickersKRW") {
       const mk = await httpJSON("https://api.upbit.com/v1/market/all?isDetails=true");
       const krw = mk.filter(x => (x.market||"").startsWith("KRW-")).map(x => x.market);
-      // 200개를 100개씩 나눠서 호출
       let out = [];
       for (let i = 0; i < krw.length; i += 100) {
         const chunk = krw.slice(i, i+100).join(",");
