@@ -18,6 +18,7 @@ h1{font-size:22px;margin:0 0 8px}.sub{color:#93c5fd;font-size:13px;opacity:.85;m
 .badge{font-size:12px;padding:5px 8px;border-radius:8px;border:1px solid #1e293b;background:#0b1b33;min-height:28px}
 .badge.err{color:#fecaca;border-color:#7f1d1d;background:#2f1313}
 .btn{padding:9px 12px;border-radius:10px;border:1px solid #1e293b;background:#0b1b33;color:#dbeafe;cursor:pointer}
+.btn.sec{background:#111827;color:#cbd5e1}
 .searchbar{position:relative}.searchbar input{width:100%;padding:13px 14px;border-radius:12px;border:1px solid #1e293b;background:#0b1327;color:#e5e7eb}
 .searchbar button{position:absolute;right:6px;top:6px;height:34px;padding:0 12px;border-radius:9px;border:1px solid #1e293b;background:#0b1b33;color:#dbeafe;cursor:pointer}
 .hint{display:flex;gap:8px;flex-wrap:wrap}
@@ -30,6 +31,9 @@ th,td{padding:10px;border-bottom:1px dashed #1e293b;font-size:14px;white-space:n
 th{color:#93c5fd;text-align:left} tr:hover{background:#0d1b31}
 .up{color:#10b981}.down{color:#ef4444}.mono{font-variant-numeric:tabular-nums}
 .right{text-align:right}.muted{color:#94a3b8}
+.settings{display:none; gap:10px; flex-wrap:wrap; margin-top:10px}
+.settings input{width:110px;padding:6px 8px;border-radius:8px;border:1px solid #1e293b;background:#0b1327;color:#e5e7eb}
+.small{font-size:12px;color:#9ca3af}
 </style>
 </head>
 <body>
@@ -44,7 +48,21 @@ th{color:#93c5fd;text-align:left} tr:hover{background:#0d1b31}
       <span id="sts-api" class="badge">API: 준비</span>
       <span id="sts-updated" class="badge">업데이트: -</span>
       <button id="btn-refresh" class="btn">🔄 새로고침</button>
-      <button id="btn-auto" class="btn">▶ 자동갱신 켜기(1초)</button>
+      <button id="btn-auto" class="btn sec">▶ 자동갱신 켜기(1초)</button>
+      <button id="btn-settings" class="btn">⚙️ 세팅</button>
+    </div>
+
+    <!-- 예측 파라미터 세팅 패널 -->
+    <div id="settingsPanel" class="settings">
+      <div><div class="small">ATR 가중(0~2)</div><input id="cfg_atrW" type="number" step="0.1" /></div>
+      <div><div class="small">볼린저 가중(0~2)</div><input id="cfg_bbwW" type="number" step="0.1" /></div>
+      <div><div class="small">추세 가중(0~2)</div><input id="cfg_trendW" type="number" step="0.1" /></div>
+      <div><div class="small">RSI 상승 보정</div><input id="cfg_rsiBull" type="number" step="0.1" /></div>
+      <div><div class="small">RSI 하락 보정</div><input id="cfg_rsiBear" type="number" step="0.1" /></div>
+      <div><div class="small">최소/상한(상승%)</div><input id="cfg_capUp" type="number" step="0.1" /></div>
+      <div><div class="small">최소/상한(하락%)</div><input id="cfg_capDn" type="number" step="0.1" /></div>
+      <div><div class="small">스파이크 임계(%)</div><input id="cfg_spikeTh" type="number" step="0.1" /></div>
+      <button id="cfg_save" class="btn">💾 저장</button>
     </div>
   </div>
 
@@ -106,10 +124,42 @@ th{color:#93c5fd;text-align:left} tr:hover{background:#0d1b31}
 <script>
 /* ===== 설정 ===== */
 const APP={INTERVAL_MS:1000,TOP_N:10,UPBIT_API_BASE:(location.origin+"/api/upbit"),USE_PROXY:true};
-// 실시간 급등 스캐너 설정
-const SPIKE_WINDOW_MS=15_000, SPIKE_KEEP_MS=20_000, SPIKE_THRESHOLD=2.0, SPIKE_LIMIT=8;
+const CFG_KEY='predict_cfg_v2';
 
-const upbit=(fn,q="")=>APP.USE_PROXY?`${APP.UPBIT_API_BASE}?fn=${fn}${q}`:(fn==="markets"?"https://api.upbit.com/v1/market/all?isDetails=false":`https://api.upbit.com/v1/${fn}`+(q||""));
+// 기본 예측 파라미터(원하면 여기 값만 바꿔도 OK)
+const CONFIG_DEFAULT={
+  ATR_WEIGHT:0.8,      // ATR% 기여도
+  BBW_WEIGHT:0.6,      // 볼린저 대역폭% 기여도
+  TREND_WEIGHT:0.9,    // 추세(MACD/EMA) 기여도
+  RSI_BULL:1.0,        // RSI 상승 보정(+)
+  RSI_BEAR:1.0,        // RSI 하락 보정(+)
+  CAP_UP:7.5,          // 상승% 상한
+  CAP_DN:7.5,          // 하락% 상한
+  MIN_MOVE:0.4,        // 최소 예측%
+  SPIKE_TH:2.0         // 실시간 급등 임계(%) 15초
+};
+let CONFIG=loadCfg();
+
+// 스파이크(실시간 급등) 창 설정
+const SPIKE_WINDOW_MS=15_000, SPIKE_KEEP_MS=20_000;
+
+function loadCfg(){
+  try{const v=JSON.parse(localStorage.getItem(CFG_KEY)); return {...CONFIG_DEFAULT, ...(v||{})};}catch{return {...CONFIG_DEFAULT};}
+}
+function saveCfg(){ localStorage.setItem(CFG_KEY, JSON.stringify(CONFIG)); }
+function bindSettings(){
+  const $=id=>document.getElementById(id);
+  $('#cfg_atrW').value=CONFIG.ATR_WEIGHT;
+  $('#cfg_bbwW').value=CONFIG.BBW_WEIGHT;
+  $('#cfg_trendW').value=CONFIG.TREND_WEIGHT;
+  $('#cfg_rsiBull').value=CONFIG.RSI_BULL;
+  $('#cfg_rsiBear').value=CONFIG.RSI_BEAR;
+  $('#cfg_capUp').value=CONFIG.CAP_UP;
+  $('#cfg_capDn').value=CONFIG.CAP_DN;
+  $('#cfg_spikeTh').value=CONFIG.SPIKE_TH;
+}
+
+/* ===== 유틸 ===== */
 const $=id=>document.getElementById(id);
 const fmt=n=>(n===null||n===undefined||isNaN(n))?'-':Number(n).toLocaleString('ko-KR');
 const pfmt=n=>{const x=Number(n);if(!isFinite(x))return'-';return(x>0?'+':'')+x.toFixed(2)+'%';};
@@ -117,6 +167,15 @@ const setUpdated=()=>$('sts-updated').textContent='업데이트: '+new Date().to
 function krwTick(p){if(p>=2e6)return 1000;if(p>=1e6)return 500;if(p>=5e5)return 100;if(p>=1e5)return 50;if(p>=1e4)return 10;if(p>=1e3)return 1;if(p>=100)return .1;if(p>=10)return .01;if(p>=1)return .001;return .0001;}
 function roundToTick(v,ref){const s=krwTick(ref??v);return Math.round(v/s)*s;}
 function fmtPrice(v,ref){if(!isFinite(v))return'-';const s=krwTick(ref??v);const r=Math.max(roundToTick(v,ref),s);const d=s>=1?0:s>=.1?1:s>=.01?2:s>=.001?3:4;return Number(r).toLocaleString('ko-KR',{minimumFractionDigits:d,maximumFractionDigits:d});}
+const upbit=(fn,q="")=>APP.USE_PROXY?`${APP.UPBIT_API_BASE}?fn=${fn}${q}`:(fn==="markets"?"https://api.upbit.com/v1/market/all?isDetails=false":`https://api.upbit.com/v1/${fn}`+(q||""));
+
+/* ===== 지표 ===== */
+function SMA(a,p){if(a.length<p)return[];let o=[],s=0;for(let i=0;i<a.length;i++){s+=a[i];if(i>=p)s-=a[i-p];if(i>=p-1)o.push(s/p)}return o}
+function EMA(a,p){const k=2/(p+1);let o=[],pr=null;for(let i=0;i<a.length;i++){const v=a[i];pr=(pr===null)?v:(v-pr)*k+pr;o.push(pr)}return o}
+function RSI(c,p=14){if(c.length<=p)return[];let g=[],l=[];for(let i=1;i<c.length;i++){const d=c[i]-c[i-1];g.push(Math.max(d,0));l.push(Math.max(-d,0))}let ag=g.slice(0,p).reduce((a,b)=>a+b,0)/p,al=l.slice(0,p).reduce((a,b)=>a+b,0)/p,o=[100-(100/(1+(ag/(al||1e-9))))];for(let i=p;i<g.length;i++){ag=(ag*(p-1)+g[i])/p;al=(al*(p-1)+l[i])/p;o.push(100-(100/(1+(ag/(al||1e-9)))))}return o}
+function ATR(h,l,c,p=14){const tr=[];for(let i=0;i<h.length;i++){const pr=c[i-1]??c[i];tr.push(Math.max(h[i]-l[i],Math.abs(h[i]-pr),Math.abs(l[i]-pr)))}return SMA(tr,p)}
+function hhll(a,n){const x=a.slice(-n);return{hh:Math.max(...x),ll:Math.min(...x)}}
+function stdev(arr){const n=arr.length;if(n===0)return 0;const m=arr.reduce((a,b)=>a+b,0)/n;const v=arr.reduce((a,b)=>a+(b-m)*(b-m),0)/n;return Math.sqrt(v);}
 
 /* ===== 마켓/검색 ===== */
 let upbitMarkets=[], upbitBySymbol=new Map();
@@ -138,14 +197,15 @@ function setChips(items){
   });
   $('searchChips').replaceChildren(frag);
 }
-$('searchInput').addEventListener('input',e=>{
+const searchInput=$('searchInput');
+searchInput.addEventListener('input',e=>{
   const q=e.target.value.trim().toLowerCase(); if(q.length<1){$('searchChips').replaceChildren();return;}
   const items=upbitMarkets.filter(m=>m.korean_name.toLowerCase().includes(q)||(m.english_name||'').toLowerCase().includes(q)||(m.market||'').toLowerCase().includes(q));
   setChips(items);
 });
-$('searchInput').addEventListener('keydown',ev=>{if(ev.key==='Enter')$('btnSearch').click();});
+searchInput.addEventListener('keydown',ev=>{if(ev.key==='Enter')$('btnSearch').click();});
 $('btnSearch').addEventListener('click',()=>{
-  const fb='KRW-BTC'; let qRaw=($('searchInput').value||'').trim(); if(!qRaw){analyze(fb);return;}
+  const fb='KRW-BTC'; let qRaw=(searchInput.value||'').trim(); if(!qRaw){analyze(fb);return;}
   const q=qRaw.replace(/\s+/g,' ').toLowerCase(); const up=qRaw.replace(/\s+/g,'').toUpperCase();
   const pick= upbitMarkets.find(m=>(m.market||'').toUpperCase()===up)
         || upbitMarkets.find(m=>(m.market||'').toUpperCase().endsWith('-'+up))
@@ -158,62 +218,74 @@ $('btnSearch').addEventListener('click',()=>{
   analyze(pick.market); setChips([pick]);
 });
 
-/* ===== 지표/타점 + 예상 변동폭 ===== */
-function EMA(a,p){const k=2/(p+1);let o=[],pr=null;for(let i=0;i<a.length;i++){const v=a[i];pr=(pr===null)?v:(v-pr)*k+pr;o.push(pr)}return o}
-function RSI(c,p=14){if(c.length<=p)return[];let g=[],l=[];for(let i=1;i<c.length;i++){const d=c[i]-c[i-1];g.push(Math.max(d,0));l.push(Math.max(-d,0))}let ag=g.slice(0,p).reduce((a,b)=>a+b,0)/p,al=l.slice(0,p).reduce((a,b)=>a+b,0)/p,o=[100-(100/(1+(ag/(al||1e-9))))];for(let i=p;i<g.length;i++){ag=(ag*(p-1)+g[i])/p;al=(al*(p-1)+l[i])/p;o.push(100-(100/(1+(ag/(al||1e-9)))))}return o}
-function ATR(h,l,c,p=14){const tr=[];for(let i=0;i<h.length;i++){const pr=c[i-1]??c[i];tr.push(Math.max(h[i]-l[i],Math.abs(h[i]-pr),Math.abs(l[i]-pr)))}let s=0,o=[];for(let i=0;i<tr.length;i++){s+=tr[i];if(i>=p)s-=tr[i-p];if(i>=p-1)o.push(s/p)}return o}
-function hhll(a,n){const x=a.slice(-n);return{hh:Math.max(...x),ll:Math.min(...x)}}
-
-function predictMovePct(atrPct, rsi){
-  // 경험칙 기반 간단 예측(과대추정 방지 클램프)
-  let base = Math.min(6, Math.max(0.5, atrPct*0.8));  // ATR(%) 기반
-  let up = base, down = base;
-  if(rsi>=60){ up+=1.0; down-=0.5; }
-  if(rsi>=70){ up+=0.8; }
-  if(rsi<=40){ down+=1.0; up-=0.5; }
-  if(rsi<=30){ down+=0.8; }
-  up   = Math.max(0.2, up);
-  down = Math.max(0.2, down);
-  return { up:+up.toFixed(2), down:+down.toFixed(2) };
+/* ===== 예측식(상승/하락 %) =====
+   - 기본폭 = ATR%*w1 + BBW%*w2
+   - 추세보정 = MACD 스코어 * TREND_WEIGHT (EMA20>EMA50 +)
+   - RSI 보정 = 구간별 가/감
+   - 최종 클램프: [MIN_MOVE, CAP_{UP/DN}]
+*/
+function predictMovePctAdvanced({closes, highs, lows}){
+  const c=closes, h=highs, l=lows;
+  const price=c.at(-1)||0; if(!price) return {up:CONFIG.MIN_MOVE, down:CONFIG.MIN_MOVE};
+  // ATR%
+  const atrArr=ATR(h,l,c,14); const atr=atrArr.at(-1)||0; const atrPct=Math.max(0,(atr/price*100)||0);
+  // Bollinger bandwidth %
+  const ma20=EMA(c,20); const sd20=stdev(c.slice(-20)); const bbwPct = price? ((2*sd20)/price*100):0;
+  // Trend (MACD diff + EMA slope)
+  const ema12=EMA(c,12), ema26=EMA(c,26); const macd=(ema12.at(-1)||0)-(ema26.at(-1)||0);
+  const macdPrev=(ema12.at(-2)||0)-(ema26.at(-2)||0);
+  const macdSlope=macd - macdPrev;
+  const ema20Arr=EMA(c,20), ema50Arr=EMA(c,50);
+  const emaUp=(ema20Arr.at(-1)||0)>(ema50Arr.at(-1)||0)?1:-1;
+  const trendScore = (macd*0.6 + macdSlope*0.4) * emaUp; // 부호 유지
+  // base
+  let base = atrPct*CONFIG.ATR_WEIGHT + Math.max(0,bbwPct)*CONFIG.BBW_WEIGHT;
+  // trend bias: 0.2~1.2 범위
+  const tb = Math.max(0.2, Math.min(1.2, 1 + trendScore*CONFIG.TREND_WEIGHT*0.5));
+  // RSI 보정
+  const rsi=RSI(c,14).at(-1)||50;
+  let up = base*tb, down = base*tb;
+  if(rsi>=60) up+=CONFIG.RSI_BULL;
+  if(rsi>=70) up+=CONFIG.RSI_BULL*0.8;
+  if(rsi<=40) down+=CONFIG.RSI_BEAR;
+  if(rsi<=30) down+=CONFIG.RSI_BEAR*0.8;
+  // 안전 클램프
+  up   = Math.max(CONFIG.MIN_MOVE, Math.min(CONFIG.CAP_UP,   up));
+  down = Math.max(CONFIG.MIN_MOVE, Math.min(CONFIG.CAP_DN,   down));
+  // 소숫점 2자리
+  return {up:+up.toFixed(2), down:+down.toFixed(2)};
 }
 
+/* ===== 타점 계산 ===== */
 function fullsetTargets(candles){
   const c=candles.map(x=>x.c), h=candles.map(x=>x.h), l=candles.map(x=>x.l);
   const price=c.at(-1);
   const ema20=EMA(c,20).at(-1), ema50=EMA(c,50).at(-1);
-  const rsiArr=RSI(c,14), rsi=rsiArr.at(-1)||50;
-  const atr=ATR(h,l,c,14).at(-1)||0, atrPct=price? (atr/price*100):0;
-  const {hh,ll}=hhll(c,60);
-  const d=hh-ll, f382=hh-d*0.382, f5=hh-d*0.5, f618=hh-d*0.618, ext127=hh+d*0.272, ext1618=hh+d*0.618;
-
-  let buy1,buy2,sell1,sell2,stop; const up=ema20>ema50;
-  if(up){ buy1=Math.min(ema20,f382); buy2=Math.min(f5,f618); sell1=Math.max(hh,ext127); sell2=Math.max(sell1*1.02,ext1618); stop=Math.min(buy1-(price*0.01), f618-(price*0.005)); }
-  else { buy1=Math.min(f5,f618); buy2=f618*0.985; sell1=Math.max(ema50,f382); sell2=Math.max(hh,sell1*1.03); stop=Math.min(buy1-(price*0.009), ll-(price*0.003)); }
-
-  const {up:predUp, down:predDown} = predictMovePct(atrPct, rsi);
-
-  return { price,buy1,buy2,sell1,sell2,stop,
-           phase:(rsi>70&&ema20>ema50)?'불장':(rsi<45&&ema20<ema50)?'하락장':'중립',
-           risk:2, predUp, predDown };
+  const {hh,ll}=hhll(c,60); const d=hh-ll;
+  const f382=hh-d*0.382, f5=hh-d*0.5, f618=hh-d*0.618, ext127=hh+d*0.272, ext1618=hh+d*0.618;
+  let buy1,buy2,sell1,sell2,stop; const uptrend=ema20>ema50;
+  if(uptrend){ buy1=Math.min(ema20,f382); buy2=Math.min(f5,f618); sell1=Math.max(hh,ext127); sell2=Math.max(sell1*1.02,ext1618); stop=Math.min(buy1-(price*0.01), f618-(price*0.005)); }
+  else      { buy1=Math.min(f5,f618); buy2=f618*0.985; sell1=Math.max(ema50,f382); sell2=Math.max(hh,sell1*1.03); stop=Math.min(buy1-(price*0.009), ll-(price*0.003)); }
+  const pred=predictMovePctAdvanced({closes:c, highs:h, lows:l});
+  const phase = (ema20>ema50 && (RSI(c,14).at(-1)||50)>70) ? '불장' : ((ema20<ema50 && (RSI(c,14).at(-1)||50)<45) ? '하락장':'중립');
+  return {price,buy1,buy2,sell1,sell2,stop,phase,predUp:pred.up,predDown:pred.down};
 }
 
-/* OHLC 캔들 가져오기 (분봉) */
+/* ===== 캔들 ===== */
 async function fetchCandles(minutes, market, count=200){
   const r=await fetch(`${APP.UPBIT_API_BASE}?fn=candles&minutes=${minutes}&market=${encodeURIComponent(market)}&count=${count}`,{cache:'no-store'});
   const jr=await r.json(); const rows=Array.isArray(jr)?jr:(jr.data||[]);
-  return rows.map(x=>({t:new Date(x.candle_date_time_kst||x.timestamp),
-                       c:x.trade_price, h:x.high_price, l:x.low_price})).reverse();
+  return rows.map(x=>({t:new Date(x.candle_date_time_kst||x.timestamp),c:x.trade_price,h:x.high_price,l:x.low_price})).reverse();
 }
 
+/* ===== 분석 표시 ===== */
 async function analyze(market){
   try{
     const c1=await fetchCandles(1,market,240); if(!c1.length) throw 0;
     const r=fullsetTargets(c1);
-
     const mk=(t,cls)=>{const s=document.createElement('span'); s.className='chip '+(cls||''); s.textContent=t; return s;};
     const ai=document.createDocumentFragment();
     ai.appendChild(mk(`시장: ${r.phase}`, r.phase==='불장'?'ok':r.phase==='하락장'?'danger':'warn'));
-    ai.appendChild(mk(`위험도 보통`,'warn'));
     ai.appendChild(mk(`현재가 ₩${fmtPrice(r.price,r.price)}`,''));
     ai.appendChild(mk(`예상: ↑${r.predUp}% · ↓${r.predDown}%`,''));
     $('aiChips').replaceChildren(ai);
@@ -239,15 +311,14 @@ async function analyze(market){
       </tr>`;
     setUpdated();
   }catch{
-    $('signalChips').replaceChildren(); const e=document.createElement('span');
-    e.className='chip danger'; e.textContent='분석 실패'; $('signalChips').appendChild(e);
+    $('signalChips').replaceChildren(); const e=document.createElement('span'); e.className='chip danger'; e.textContent='분석 실패'; $('signalChips').appendChild(e);
   }
 }
 
 /* ===== 빗썸 한글표기 ===== */
 const bithumbKor={BTC:'비트코인',ETH:'이더리움',XRP:'리플',ADA:'에이다',SOL:'솔라나',DOGE:'도지코인',SHIB:'시바이누',BCH:'비트코인캐시',ETC:'이더리움클래식',TRX:'트론',DOT:'폴카닷',MATIC:'폴리곤',LTC:'라이트코인',APT:'앱토스',ARB:'아비트럼',SUI:'수이',PEPE:'페페',ASTR:'아스타',STX:'스택스',API3:'에이피아이쓰리',XLM:'스텔라루멘',XEC:'이캐시',XDC:'엑스디씨',XTZ:'테조스',REZ:'레즈',AVL:'아벨라',PLUME:'플룸',OPEN:'오픈캔',STRK:'스트라이크',EPT:'에피티',SOON:'순코인',XPL:'엑스플로어',LINK:'체인링크',INJ:'인젝티브',BLUR:'블러',CVC:'시빅',CHZ:'칠리즈',ENA:'에테나',ONDO:'온도',MNT:'멘타',NEAR:'니어프로토콜',AVAX:'아발란체'};
 
-/* ===== 업비트/빗썸 TOP ===== */
+/* ===== TOP10 ===== */
 async function fetchUpbitTop(){
   try{
     const r=await fetch(`${APP.UPBIT_API_BASE}?fn=top&n=${APP.TOP_N}`,{cache:'no-store'});
@@ -308,11 +379,11 @@ async function refreshSpikes(){
     }
   }catch{}
   const rows=[];
-  for(const [sym,arr] of priceCache.upbit.entries()){const pct=jumpPct(arr);if(pct>=SPIKE_THRESHOLD)rows.push({ex:'업비트',sym,name:(upbitBySymbol.get(sym)||sym),pct,price:arr.at(-1).p});}
-  for(const [sym,arr] of priceCache.bithumb.entries()){const pct=jumpPct(arr);if(pct>=SPIKE_THRESHOLD)rows.push({ex:'빗썸',sym,name:(bithumbKor[sym]||sym),pct,price:arr.at(-1).p});}
+  for(const [sym,arr] of priceCache.upbit.entries()){const pct=jumpPct(arr);if(pct>=CONFIG.SPIKE_TH)rows.push({ex:'업비트',sym,name:(upbitBySymbol.get(sym)||sym),pct,price:arr.at(-1).p});}
+  for(const [sym,arr] of priceCache.bithumb.entries()){const pct=jumpPct(arr);if(pct>=CONFIG.SPIKE_TH)rows.push({ex:'빗썸',sym,name:(bithumbKor[sym]||sym),pct,price:arr.at(-1).p});}
   rows.sort((a,b)=>b.pct-a.pct);
   const tb=$('#spikeTop tbody'); const frag=document.createDocumentFragment();
-  rows.slice(0,SPIKE_LIMIT).forEach(v=>{
+  rows.slice(0,8).forEach(v=>{
     const tr=document.createElement('tr');
     tr.innerHTML=`<td>${v.ex}</td><td>${v.name}</td><td>${v.sym}</td>
       <td class="up">+${v.pct.toFixed(2)}%</td>
@@ -329,12 +400,35 @@ $('btn-refresh').addEventListener('click',()=>{refreshUpbitTop();refreshBithumbT
 $('btn-auto').addEventListener('click',()=>{
   if(timer){clearInterval(timer);timer=null;$('btn-auto').textContent='▶ 자동갱신 켜기(1초)';}
   else{timer=setInterval(()=>{refreshUpbitTop();refreshBithumbTop();refreshSpikes();},APP.INTERVAL_MS);
-       $('btn-auto').textContent='⏸ 자동갱신 끄기';
-       refreshUpbitTop();refreshBithumbTop();refreshSpikes();}
+       $('btn-auto').textContent='⏸ 자동갱신 끄기'; refreshUpbitTop();refreshBithumbTop();refreshSpikes();}
 });
+$('btn-settings').addEventListener('click',()=>{
+  const p=$('settingsPanel'); p.style.display=(p.style.display==='flex'?'none':'flex');
+  if(p.style.display==='flex') bindSettings();
+});
+$('cfg_save').addEventListener('click',()=>{
+  const g=id=>parseFloat(document.getElementById(id).value);
+  CONFIG={
+    ATR_WEIGHT: g('cfg_atrW'),
+    BBW_WEIGHT: g('cfg_bbwW'),
+    TREND_WEIGHT: g('cfg_trendW'),
+    RSI_BULL: g('cfg_rsiBull'),
+    RSI_BEAR: g('cfg_rsiBear'),
+    CAP_UP: g('cfg_capUp'),
+    CAP_DN: g('cfg_capDn'),
+    MIN_MOVE: CONFIG.MIN_MOVE, // UI 단순화(필요시 입력칸 추가 가능)
+    SPIKE_TH: g('cfg_spikeTh')
+  };
+  // NaN 방지 + 기본값 병합
+  Object.keys(CONFIG_DEFAULT).forEach(k=>{
+    if(!isFinite(CONFIG[k])) CONFIG[k]=CONFIG_DEFAULT[k];
+  });
+  saveCfg(); alert('세팅 저장 완료');
+});
+
 (async function(){
+  bindSettings();
   await loadMarkets();
-  // 첫 로딩
   refreshUpbitTop(); refreshBithumbTop(); refreshSpikes();
   analyze('KRW-BTC');
 })();
