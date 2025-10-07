@@ -1,9 +1,10 @@
 <!doctype html>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Redirecting…</title>
 <script>
-  const vercel = "https://satoshi-wallet-2025-vdlv.vercel.app"; // ← 본인 Vercel 주소
+  // ⬇ 본인 Vercel 배포 주소
+  const vercel = "https://satoshi-wallet-2025-vdlv.vercel.app";
   const target = vercel + location.pathname + location.search + location.hash;
   location.replace(target);
 </script>
