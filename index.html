@@ -78,6 +78,13 @@ code#server-text{color:#a6d4ff}
 
   <div class="footer">※ 정보 제공/교육용, 거래 책임은 이용자에게 있습니다.</div>
 </div>
+<script>
+setInterval(() => {
+  fetch(window.location.href, { cache: "reload" })
+    .then(() => console.log("🔄 실시간 데이터 갱신 완료"))
+    .catch(err => console.error("⚠️ 갱신 오류:", err));
+}, 1000);
+</script>
 
 <script>
 /* ---------- 0) 공통 ---------- */
