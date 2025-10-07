@@ -1,9 +1,7 @@
 {
-  "api": {
-    "upbit": "/api/upbit",
-    "bithumb": "/api/bithumb"
-  },
-  "ui": {
-    "showServerText": true
-  }
+  "update_interval": 1000,
+  "data_sources": ["upbit", "bithumb"],
+  "display_mode": "realtime",
+  "currency": "KRW",
+  "refresh_on_focus": true
 }
