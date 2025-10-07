@@ -1,16 +1,19 @@
-// /api/upbit.js
-// Vercel Node 런타임(global fetch 사용, node-fetch 불필요)
+// /api/upbit.js  — Vercel Serverless (Node 18+, global fetch 사용)
+
 async function httpJSON(url, tries = 2) {
   let lastErr;
   for (let i = 0; i < tries; i++) {
     try {
       const r = await fetch(url, { headers: { "Accept": "application/json" } });
-      if (r.status === 429) { await new Promise(r => setTimeout(r, 250 + Math.random()*300)); continue; }
+      if (r.status === 429) { // rate limit
+        await new Promise(r => setTimeout(r, 250 + Math.random() * 300));
+        continue;
+      }
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       return await r.json();
     } catch (e) {
       lastErr = e;
-      await new Promise(r => setTimeout(r, 150 + Math.random()*200));
+      await new Promise(r => setTimeout(r, 150 + Math.random() * 200));
     }
   }
   throw lastErr || new Error("fetch failed");
@@ -42,11 +45,12 @@ module.exports = async (req, res) => {
     }
 
     if (fn === "tickersKRW") {
+      // KRW 마켓 전체 현재가를 100개 단위로 분할 조회
       const mk = await httpJSON("https://api.upbit.com/v1/market/all?isDetails=true");
-      const krw = (mk || []).filter(x => (x.market||"").startsWith("KRW-")).map(x => x.market);
+      const krw = (mk || []).filter(x => (x.market || "").startsWith("KRW-")).map(x => x.market);
       let out = [];
       for (let i = 0; i < krw.length; i += 100) {
-        const chunk = krw.slice(i, i+100).join(",");
+        const chunk = krw.slice(i, i + 100).join(",");
         const url = `https://api.upbit.com/v1/ticker?markets=${encodeURIComponent(chunk)}`;
         const j = await httpJSON(url);
         if (Array.isArray(j)) out = out.concat(j);
