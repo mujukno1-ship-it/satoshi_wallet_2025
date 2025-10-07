@@ -1,9 +1,7 @@
 {
   "version": 2,
   "routes": [
-    { "src": "/api/upbit",   "dest": "/api/upbit.js" },
-    { "src": "/api/bithumb", "dest": "/api/bithumb.js" },
-    { "src": "/",            "dest": "/index.html" },
-    { "src": "/(.*)",        "dest": "/$1" }
+    { "src": "^/api/(.*)$", "dest": "/api/$1" },
+    { "src": ".*", "dest": "/index.html" }
   ]
 }
