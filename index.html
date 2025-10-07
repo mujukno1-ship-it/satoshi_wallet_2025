@@ -1,12 +1,78 @@
 <!doctype html>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Redirecting…</title>
-<script>
-  // ⬇ 본인 Vercel 배포 주소
-  const vercel = "https://satoshi-wallet-2025-vdlv.vercel.app";
-  const target = vercel + location.pathname + location.search + location.hash;
-  location.replace(target);
-</script>
-<p>자동으로 이동하지 않으면 <a id="go">여기</a>를 클릭하세요.</p>
-<script>document.getElementById('go').href = vercel;</script>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>사토시의지갑</title>
+    <style>
+      :root {
+        --bg:#0e1621; --panel:#111c27; --panel2:#0f1924; --text:#e8f0f7;
+        --muted:#9fb3c8; --green:#28d07f; --red:#ff5d73; --line:#1e2a36;
+      }
+      *{box-sizing:border-box}
+      body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Apple SD Gothic Neo,Noto Sans KR,sans-serif}
+      .wrap{max-width:1250px;margin:28px auto;padding:0 16px}
+      .title{font-weight:800;font-size:28px;margin-bottom:12px}
+      .hint{color:var(--muted);font-size:12px;margin-bottom:18px}
+      .panel{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line);border-radius:14px;padding:16px}
+      .row{display:flex;gap:18px}
+      .col{flex:1}
+      .tabs{display:flex;gap:8px;margin-bottom:12px}
+      .tab{padding:8px 14px;border-radius:10px;border:1px solid var(--line);background:#0c1420;cursor:pointer}
+      .tab.active{background:#0a3a55;border-color:#135c87}
+      .server{float:right;font-size:12px;color:var(--muted)}
+      .search{display:flex;gap:8px;margin:10px 0 8px}
+      .search input{flex:1;padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:#0b1621;color:var(--text);outline:none}
+      .btn{padding:12px 16px;border-radius:12px;border:1px solid var(--line);background:#0c3450;color:#d8f3ff;cursor:pointer}
+      .grid{display:grid;grid-template-columns:repeat(10,1fr);gap:8px;margin-top:10px;font-size:12px;color:#bcd0e4}
+      .grid div{padding:8px;border:1px dashed transparent;border-radius:10px}
+      .grid .th{color:#89a9c6}
+      .list{background:#0b1520;border:1px solid var(--line);border-radius:14px;padding:14px}
+      .item{display:flex;justify-content:space-between;padding:8px 4px;border-bottom:1px dashed #172433}
+      .item:last-child{border-bottom:none}
+      .pos{color:var(--green);font-weight:700}
+      .neg{color:var(--red);font-weight:700}
+      .muted{color:#7f99b4}
+      .footer{margin-top:10px;color:#6f8aa6;font-size:11px}
+      .badge{display:inline-block;padding:4px 8px;border:1px solid #1d3246;border-radius:999px;font-size:11px;color:#9fc5e6;background:#0c1b28;margin-left:6px}
+      .pill{display:inline-block;padding:2px 8px;border-radius:999px;background:#0e2031;border:1px solid #1a3147;color:#99bbd2;font-size:11px;margin-left:6px}
+      .toast{position:fixed;right:14px;bottom:14px;background:#0e2436;border:1px solid #1d3b55;color:#d9f0ff;padding:12px 14px;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.35);display:none}
+      code#server-text{color:#a6d4ff}
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="title">사토시의지갑
+        <span class="server">서버: <code id="server-text"></code></span>
+      </div>
+      <div class="hint">검색 → 현재가/매수·매도/손절/상승%·하락%/위험도/코멘트 · 실시간 급등(업비트·빗썸 분리)</div>
+
+      <div class="panel">
+        <div class="tabs" role="tablist" aria-label="거래소 선택">
+          <button class="tab active" data-ex="upbit">업비트</button>
+          <button class="tab" data-ex="bithumb">빗썸</button>
+          <span class="pill" id="last-updated">—</span>
+        </div>
+
+        <div class="search">
+          <input id="q" placeholder="코인명/심볼/시장 (예: 비트코인, BTC, KRW-BTC, 리플)" autocomplete="off" />
+          <button class="btn" id="btn-search">검색</button>
+        </div>
+
+        <div class="grid" id="headers">
+          <div class="th">기준봉</div><div class="th">시장상태</div><div class="th">위험도</div><div class="th">상승 예상</div><div class="th">하락 예상</div>
+          <div class="th">매수1</div><div class="th">매수2</div><div class="th">매도1</div><div class="th">매도2</div><div class="th">손절</div>
+        </div>
+        <div class="grid" id="result">
+          <!-- 검색 결과가 여기 채워짐 -->
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:18px">
+        <div class="col">
+          <div class="panel">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+              <div>· 실시간 급등 <span class="badge">(업비트)</span></div>
+              <div class="muted" id="clock-upbit">—</div>
+            </div>
+            <d
