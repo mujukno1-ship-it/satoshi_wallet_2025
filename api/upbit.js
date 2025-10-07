@@ -1,75 +1,46 @@
-// /api/upbit.js  (Vercel Serverless)
-export default async function handler(req, res) {
-  // CORS 허용
-  if (req.method === "OPTIONS") {
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Access-Control-Allow-Methods", "GET,OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "*");
-    return res.status(204).end();
-  }
-  const send = (code, body) => {
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Cache-Control", "no-store");
-    res.status(code).json(body);
-  };
+// api/upbit.js
+import fetch from "node-fetch";
 
-  const { fn } = req.query;
+async function httpJSON(url, tries = 2) {
+  let lastErr;
+  for (let i = 0; i < tries; i++) {
+    try {
+      const r = await fetch(url, { headers: { "Accept": "application/json" } });
+      if (r.status === 429) { await new Promise(r => setTimeout(r, 250 + Math.random()*300)); continue; }
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      return await r.json();
+    } catch (e) { lastErr = e; await new Promise(r => setTimeout(r, 150 + Math.random()*200)); }
+  }
+  throw lastErr || new Error("fetch failed");
+}
+
+export default async function handler(req, res) {
   try {
-    if (fn === "ping") return send(200, { ok: true, pong: true });
+    const { fn } = req.query;
 
     if (fn === "markets") {
-      const r = await fetch("https://api.upbit.com/v1/market/all?isDetails=true");
-      const data = await r.json();
-      return send(200, { ok: true, markets: data });
-    }
-
-    if (fn === "ticker") {
-      const markets = req.query.markets || "";
-      const r = await fetch("https://api.upbit.com/v1/ticker?markets=" + markets);
-      const data = await r.json();
-      return send(200, { ok: true, data });
+      const j = await httpJSON("https://api.upbit.com/v1/market/all?isDetails=true");
+      return res.status(200).json({ ok: true, data: j, markets: j });
     }
 
     if (fn === "candles") {
-      const minutes = req.query.minutes || "1";
-      const market  = req.query.market;
-      const count   = req.query.count || "200";
-      if (!market) return send(400, { ok: false, error: "market required" });
-      const url = `https://api.upbit.com/v1/candles/minutes/${minutes}?market=${market}&count=${count}`;
-      const r = await fetch(url);
-      const data = await r.json();
-      return send(200, { ok: true, data });
+      const minutes = Number(req.query.minutes || 1);
+      const market  = req.query.market || "KRW-BTC";
+      const count   = Math.min(Number(req.query.count || 240), 400);
+      const url = `https://api.upbit.com/v1/candles/minutes/${minutes}?market=${encodeURIComponent(market)}&count=${count}`;
+      const j = await httpJSON(url);
+      return res.status(200).json({ ok: true, data: j });
     }
 
-    if (fn === "top") {
-      const n = Number(req.query.n || 15);
-      const rAll = await fetch("https://api.upbit.com/v1/market/all?isDetails=true");
-      const mk = await rAll.json();
-      const krw = mk.filter(x => x.market.startsWith("KRW-")).slice(0, 150);
-
-      // ticker는 100개 단위로 나눠서 요청
-      const chunks = [];
-      for (let i = 0; i < krw.length; i += 100) {
-        chunks.push(krw.slice(i, i + 100).map(x => x.market).join(","));
-      }
-      const tickers = [];
-      for (const chunk of chunks) {
-        const r = await fetch("https://api.upbit.com/v1/ticker?markets=" + chunk);
-        const t = await r.json();
-        tickers.push(...t);
-      }
-
-      tickers.sort((a, b) => (b.signed_change_rate || 0) - (a.signed_change_rate || 0));
-      const data = tickers.slice(0, n).map(x => ({
-        market: x.market,
-        signed_change_rate: x.signed_change_rate,
-        acc_trade_price_24h: x.acc_trade_price_24h
-      }));
-      return send(200, { ok: true, data });
+    if (fn === "ticker") {
+      const market  = req.query.market || "KRW-BTC";
+      const url = `https://api.upbit.com/v1/ticker?markets=${encodeURIComponent(market)}`;
+      const j = await httpJSON(url);
+      return res.status(200).json({ ok: true, data: j?.[0] || null });
     }
 
-    return send(400, { ok: false, error: "unknown fn" });
+    return res.status(400).json({ ok: false, error: "unknown fn" });
   } catch (e) {
-    return send(500, { ok: false, error: String(e) });
+    res.status(500).json({ ok: false, error: String(e?.message || e) });
   }
 }
