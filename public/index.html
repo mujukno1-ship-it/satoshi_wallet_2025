@@ -41,10 +41,11 @@
     }
     input[type="text"]::placeholder {
       color: #64748b;
+      text-align: left;
     }
     button {
       height: 55px;
-      width: 120px;
+      width: 140px;
       background-color: #38bdf8;
       color: #0f172a;
       border: none;
@@ -53,6 +54,12 @@
       font-weight: bold;
       cursor: pointer;
       transition: 0.2s;
+      text-align: left;          /* ✅ 글자 왼쪽 정렬 */
+      padding-left: 25px;        /* ✅ 왼쪽 여백 */
+      display: flex;             /* ✅ 아이콘+글자 정렬 */
+      align-items: center;
+      justify-content: flex-start;
+      gap: 8px;                  /* ✅ 아이콘과 글자 사이 간격 */
     }
     button:hover {
       background-color: #0ea5e9;
@@ -65,7 +72,7 @@
 
   <div class="search-box">
     <input type="text" id="coinSearch" placeholder="코인명을 입력하세요 (예: 비트코인, 이더리움)" />
-    <button onclick="searchCoin()">검색</button>
+    <button onclick="searchCoin()">🔍 검색</button> <!-- ✅ 아이콘 추가 -->
   </div>
 
   <script>
