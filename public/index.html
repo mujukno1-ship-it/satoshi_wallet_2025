@@ -28,6 +28,22 @@
       gap: 10px;
       margin-top: 40px;
     }
+    button {
+      height: 55px;
+      width: 120px;
+      background-color: #38bdf8;
+      color: #0f172a;
+      border: none;
+      border-radius: 12px;
+      font-size: 1.1rem;
+      font-weight: bold;
+      cursor: pointer;
+      transition: 0.2s;
+      text-align: center;
+    }
+    button:hover {
+      background-color: #0ea5e9;
+    }
     input[type="text"] {
       width: 420px;
       height: 55px;
@@ -38,31 +54,11 @@
       font-size: 1.2rem;
       padding-left: 20px;
       outline: none;
+      text-align: left;
     }
     input[type="text"]::placeholder {
       color: #64748b;
       text-align: left;
-    }
-    button {
-      height: 55px;
-      width: 140px;
-      background-color: #38bdf8;
-      color: #0f172a;
-      border: none;
-      border-radius: 12px;
-      font-size: 1.1rem;
-      font-weight: bold;
-      cursor: pointer;
-      transition: 0.2s;
-      text-align: left;          /* ✅ 글자 왼쪽 정렬 */
-      padding-left: 25px;        /* ✅ 왼쪽 여백 */
-      display: flex;             /* ✅ 아이콘+글자 정렬 */
-      align-items: center;
-      justify-content: flex-start;
-      gap: 8px;                  /* ✅ 아이콘과 글자 사이 간격 */
-    }
-    button:hover {
-      background-color: #0ea5e9;
     }
   </style>
 </head>
@@ -70,9 +66,10 @@
   <h1>사토시의지갑 (Satoshi Wallet)</h1>
   <p>업비트 & 빗썸 실시간 시세 연동 / 매수·매도 타점 자동 표시 시스템</p>
 
+  <!-- ✅ 순서 변경: 버튼 → 입력창 -->
   <div class="search-box">
+    <button onclick="searchCoin()">검색</button>
     <input type="text" id="coinSearch" placeholder="코인명을 입력하세요 (예: 비트코인, 이더리움)" />
-    <button onclick="searchCoin()">🔍 검색</button> <!-- ✅ 아이콘 추가 -->
   </div>
 
   <script>
@@ -82,8 +79,8 @@
         alert("검색어를 입력하세요!");
         return;
       }
-      console.log(`🔍 검색된 코인: ${keyword}`);
-      alert(`'${keyword}' 검색 중... (추후 자동 시세연동 예정)`);
+      console.log(`검색된 코인: ${keyword}`);
+      alert(`'${keyword}' 검색 중... (시세 연동 준비 중)`);
     }
   </script>
 
