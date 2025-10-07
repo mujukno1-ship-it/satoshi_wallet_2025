@@ -1,61 +1,300 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>사토시의지갑</title>
-  <link rel="stylesheet" href="style.css" />
-  <script src="https://cdn.iamport.kr/v1/iamport.js"></script>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>사토시의지갑 — 매수·매도 타점 분석 (거래/결제 없음)</title>
+<meta name="description" content="업비트·빗썸 시세 기반으로 검색, 자동완성, 매수/매도 타점, 되돌림(피보나치), 위험도(ATR%), 거시경제 스코어, 저장한 타점, 상승 TOP 등을 제공하는 브라우저 기반 도구입니다. 거래/결제 기능은 없으며 정보 제공만 합니다.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='48' fill='%232563eb'/%3E%3Ctext x='50' y='63' font-size='60' text-anchor='middle' fill='white'%3ES%3C/text%3E%3C/svg%3E">
+<style>
+:root{--bg:#0b1220;--panel:#0f172a;--line:#1e293b;--text:#e5e7eb;--muted:#93a2b3;--accent:#2563eb;--up:#22c55e;--down:#ef4444;--warn:#f59e0b;}
+*{box-sizing:border-box}
+html,body{height:100%} body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Apple SD Gothic Neo,Noto Sans KR,Malgun Gothic,sans-serif}
+.wrap{max-width:1200px;margin:24px auto;padding:0 16px}
+h1{margin:0 0 6px;font-size:22px}
+.sub{color:var(--muted);font-size:13px;margin-bottom:14px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:16px}
+.title{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.badge{display:inline-flex;gap:6px;align-items:center;padding:4px 10px;border:1px solid var(--line);border-radius:999px;background:#0c1526;font-size:12px}
+.riskL{color:#86efac}.riskM{color:#fbbf24}.riskH{color:#fca5a5}
+.note{color:var(--muted);font-size:12px}
+.btn{padding:10px 14px;border-radius:10px;border:1px solid var(--line);background:#111827;color:#e5e7eb;cursor:pointer}
+.btn:hover{background:#0c1220}
+.search{display:flex;gap:8px;align-items:center;position:relative}
+.search input{flex:1;padding:12px;border-radius:10px;border:1px solid var(--line);background:#0c1526;color:#9beaf9}
+.ac{position:absolute;left:0;right:0;top:48px;background:#fff;color:#111;border:1px solid #e5e7eb;border-radius:10px;box-shadow:0 12px 28px rgba(0,0,0,.28);max-height:240px;overflow:auto;display:none;z-index:10}
+.ac div{padding:10px 12px;cursor:pointer}
+.ac div:hover,.ac .on{background:#eef2ff}
+.grid{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(320px,1fr))}
+.input{display:flex;flex-direction:column;gap:6px}
+.input input{padding:10px;border-radius:10px;border:1px solid var(--line);background:#0c1526;color:#e5e7eb}
+.table{width:100%;border-collapse:collapse}
+th,td{padding:8px 6px;border-bottom:1px solid var(--line);font-size:13px}
+th{color:#9fb3c8;text-align:left} td.r{text-align:right}
+.sep{height:8px}
+.one{margin-top:8px;padding:10px;border-radius:10px;border:1px solid var(--line);background:#0c1526}
+.savemsg{font-size:12px;color:#86efac;display:none;margin-left:8px}
+.loading{font-size:12px;color:#93c5fd;margin-left:6px;display:none}
+</style>
 </head>
 <body>
-  <!-- 상단 헤더 -->
-  <header class="site-header">
-    <div class="brand">
-      <!-- 심플 로고(SVG) -->
-      <svg class="logo" width="28" height="28" viewBox="0 0 24 24" aria-hidden="true">
-        <path d="M3 7a3 3 0 0 1 3-3h8.5a3 3 0 0 1 2.12.88l2.5 2.5A3 3 0 0 1 20 9.5V17a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3V7z" fill="currentColor" opacity=".2"/>
-        <path d="M18 8h-3a2 2 0 0 1-2-2V3" stroke="currentColor" stroke-width="1.5" fill="none"/>
-        <circle cx="12" cy="13" r="4.2" stroke="currentColor" stroke-width="1.6" fill="none"/>
-        <text x="12" y="14.5" text-anchor="middle" font-size="6" fill="currentColor">₿</text>
-      </svg>
-      <div class="title">
-        <strong>사토시의지갑</strong>
-        <span class="subtitle">SatoshiWallet • Smart Crypto Radar</span>
-      </div>
+<div class="wrap">
+  <h1>사토시의지갑</h1>
+  <div class="sub">거래/결제 기능 없음 · 브라우저 내에서만 동작 · 업비트/빗썸 KRW 기준</div>
+
+  <!-- 검색/분석 -->
+  <section class="panel">
+    <div class="title">🔎 검색(한글/영문/심볼) — 자동완성 5개 <span id="load1" class="loading">불러오는 중…</span></div>
+    <div class="search">
+      <input id="q" placeholder="예: 비트코인, 이더리움, KRW-SOL, DOGE ..." autocomplete="off" />
+      <button class="btn" id="btnSearch">검색</button>
+      <div id="ac" class="ac"></div>
     </div>
-    <nav class="nav">
-      <a href="members.html" class="nav-link">회원 전용</a>
-    </nav>
-  </header>
-
-  <main class="wrap">
-    <!-- 테스트 배지 -->
-    <p class="badge-test">🧪 <strong>테스트 모드</strong> — 실제 결제는 연결 안 됨</p>
-
-    <p class="lead">코인 시장을 분석하고 급등 신호를 감지하는 스마트 플랫폼</p>
-
-    <div class="card">
-      <h2>멤버십 안내</h2>
-      <ul class="list">
-        <li>🔒 유료 회원만 전용 페이지 접근</li>
-        <li>⚡ 급등 코인 실시간 레이더</li>
-        <li>🎯 매수·매도 타점 제공 (풀세트 알고리즘)</li>
-      </ul>
-
-      <div class="actions">
-        <button id="payBtn" class="btn btn-primary">결제하고 바로 입장하기</button>
-        <a class="btn ghost" href="members.html">(테스트) 잠금 확인</a>
-      </div>
+    <div id="sel" style="display:none;margin-top:10px">
+      <span class="badge"><b id="selName">-</b> <span id="selSym" style="opacity:.7"></span></span>
+      <span class="badge">거래소: <b id="selEx">업비트</b></span>
+      <span class="badge">현재가: ₩<b id="selPrice">-</b></span>
+      <span class="badge">24h: <b id="selPct">-</b></span>
+      <span class="badge">스탠스: <b id="stance" class="riskM">관망</b></span>
     </div>
 
-    <footer>
-      <small>※ 테스트 단계: 결제는 샌드박스(가짜 결제)로 연습하는 용도입니다.</small>
-    </footer>
-  </main>
+    <div id="badges" style="display:none;margin-top:10px">
+      <span class="badge">분석 매수타점: <b id="autoBuy">-</b></span>
+      <span class="badge">분석 매도타점: <b id="autoSell1">-</b> / 2차 <b id="autoSell2">-</b></span>
+      <span class="badge" id="riskBadge">위험도: <b id="risk">-</b></span>
+      <span class="badge" id="fib382" style="display:none">되돌림 38.2%: <b id="fib382v">-</b></span>
+      <span class="badge" id="fib618" style="display:none">되돌림 61.8%: <b id="fib618v">-</b></span>
+    </div>
 
-  <!-- (선택) 팝업 차단 안내 토스트 -->
-  <div id="popupTip" class="toast" style="display:none;">팝업이 차단되면 주소창 오른쪽 아이콘에서 허용을 눌러주세요.</div>
+    <!-- 금액 입력 -->
+    <div class="grid" style="margin-top:10px">
+      <div class="input"><label>매수 금액(₩)</label><input id="buyKRW" placeholder="예: 1,000,000"></div>
+      <div class="input"><label>매도 1차(₩)</label><input id="sell1KRW" placeholder="예: 1,150,000"></div>
+      <div class="input"><label>매도 2차(₩)</label><input id="sell2KRW" placeholder="예: 1,250,000"></div>
+      <div class="input"><label>&nbsp;</label><button class="btn" id="btnSave">저장</button><span id="saved" class="savemsg">저장됨</span></div>
+    </div>
+    <div id="one" class="one" style="display:none"></div>
+    <div class="note" style="margin-top:6px">※ 캡처/이미지 요소는 전부 제거됨. 브라우저 저장(localStorage) 사용.</div>
+  </section>
 
-  <script src="script.js"></script>
+  <!-- 거시경제 -->
+  <section class="panel">
+    <div class="title">🌍 거시경제 지표 (수동 입력 + 자동 스코어)</div>
+    <div class="grid">
+      <div class="input"><label>DXY</label><input id="m_dxy" placeholder="예: 105.2"></div>
+      <div class="input"><label>VIX</label><input id="m_vix" placeholder="예: 16.5"></div>
+      <div class="input"><label>美10Y(%)</label><input id="m_us10y" placeholder="예: 4.45"></div>
+      <div class="input"><label>WTI</label><input id="m_wti" placeholder="예: 80.2"></div>
+      <div class="input"><label>나스닥(%)</label><input id="m_ndq" placeholder="예: 0.85"></div>
+      <div class="input"><label>BTC.D(%)</label><input id="m_bdc" placeholder="예: 53.1"></div>
+    </div>
+    <div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <span class="badge" id="macroRiskB">매크로 위험도: <b id="macroRisk">-</b></span>
+      <span class="badge">힌트: <b id="macroHint">-</b></span>
+      <button class="btn" id="macroSave">지표 저장</button><span id="macroSaved" class="savemsg">저장됨</span>
+    </div>
+  </section>
+
+  <!-- 상승 TOP -->
+  <section class="panel">
+    <div class="title">📈 상승 TOP (업비트 · 빗썸) <span id="load2" class="loading">갱신 중…</span></div>
+    <div class="grid">
+      <div>
+        <b>업비트</b>
+        <table class="table"><thead><tr><th>코인(한글)</th><th>심볼</th><th class="r">24h</th><th class="r">거래대금(24h)</th></tr></thead><tbody id="upbitTop"></tbody></table>
+      </div>
+      <div>
+        <b>빗썸</b>
+        <table class="table"><thead><tr><th>코인(한글)</th><th>심볼</th><th class="r">24h</th><th class="r">거래대금(24h)</th></tr></thead><tbody id="bithumbTop"></tbody></table>
+      </div>
+    </div>
+    <div class="note">10초마다 자동 갱신</div>
+  </section>
+
+  <!-- 저장한 타점 -->
+  <section class="panel">
+    <div class="title">📝 내가 저장한 타점 (원화)</div>
+    <table class="table">
+      <thead><tr><th>코인(한글)</th><th>심볼</th><th class="r">현재가</th><th class="r">매수</th><th class="r">매도 1차</th><th class="r">매도 2차</th></tr></thead>
+      <tbody id="myT"></tbody>
+    </table>
+    <div class="note">정보 제공/교육 목적. 투자/거래 권유·집행이 아닙니다.</div>
+  </section>
+</div>
+
+<script>
+const REFRESH=10, TOPN=15;
+const fmtKRW = n => isFinite(n)? Number(n).toLocaleString('ko-KR',{maximumFractionDigits:0}) : '-';
+const pct = x => `${x>=0?'+':''}${(x||0).toFixed(2)}%`;
+const volKR = v => {v=+v||0; if(v>=1e12) return (v/1e12).toFixed(2)+'조'; if(v>=1e8) return (v/1e8).toFixed(2)+'억'; if(v>=1e4) return (v/1e4).toFixed(2)+'만'; return fmtKRW(v);};
+const deKRW = s => Number(String(s).replace(/[^0-9]/g,''))||0;
+
+let ALL=[], KRW=[], NAME={};
+async function loadMarkets(){
+  if(KRW.length) return;
+  const arr=await fetch('https://api.upbit.com/v1/market/all?isDetails=true').then(r=>r.json());
+  KRW=arr.filter(x=>x.market.startsWith('KRW-'));
+  NAME=Object.fromEntries(KRW.map(m=>[m.market,m.korean_name]));
+}
+/* 자동완성 */
+const q=document.getElementById('q'), ac=document.getElementById('ac');
+let acList=[], acSel=-1;
+q.addEventListener('input', async () => {
+  await loadMarkets();
+  const k=(q.value||'').toLowerCase().trim();
+  if(!k){ac.style.display='none';return;}
+  const base=KRW.map(x=>({market:x.market, name:x.korean_name, sym:x.market.split('-')[1]}));
+  acList = base.filter(x=>x.name.toLowerCase().includes(k)||x.sym.toLowerCase().includes(k)||x.market.toLowerCase().includes(k)).slice(0,5);
+  ac.innerHTML = acList.map((x,i)=>`<div class="${i===acSel?'on':''}" data-m="${x.market}" data-name="${x.name}" data-sym="${x.sym}">${x.name} (${x.sym})</div>`).join('');
+  ac.style.display = acList.length?'block':'none';
+});
+ac.addEventListener('click', e=>{
+  const el=e.target.closest('div'); if(!el) return;
+  q.value = el.dataset.name; ac.style.display='none';
+  doSearch({market:el.dataset.m, name:el.dataset.name, sym:el.dataset.sym});
+});
+document.getElementById('btnSearch').addEventListener('click', ()=>doSearch());
+
+/* 기술 계산 */
+function ema(vals, p){const k=2/(p+1);let e=vals[0];for(let i=1;i<vals.length;i++){e=vals[i]*k+e*(1-k);}return e;}
+function atrPct(c, p=14){
+  const n=Math.min(p+1,c.length); if(n<2) return 0;
+  let trs=[]; for(let i=0;i<n-1;i++){const h=c[i].high_price,l=c[i].low_price,pc=c[i+1].trade_price; trs.push(Math.max(h-l,Math.abs(h-pc),Math.abs(l-pc)));}
+  const atr=trs.reduce((a,b)=>a+b,0)/trs.length; return (atr/(c[0].trade_price||1))*100;
+}
+function swing(c, lb=30){let hi=-1e18,lo=1e18;for(let i=0;i<Math.min(lb,c.length);i++){hi=Math.max(hi,c[i].high_price);lo=Math.min(lo,c[i].low_price);}return{hi,lo,ran:hi-lo};}
+function targets(c){
+  const closes=c.map(x=>x.trade_price), close=closes[0];
+  const ema20=ema(closes.slice().reverse().slice(-60),20);
+  const ema60=ema(closes.slice().reverse().slice(-60),60);
+  const up = ema20>ema60 && close>ema20;
+  const {hi,lo,ran}=swing(c,30); const f382=hi-ran*0.382, f618=hi-ran*0.618;
+  let buy,s1,s2,why=[];
+  if(up){ buy=Math.max(f382,ema20)*0.998; s1=Math.min(hi,ema20*1.05); s2=hi; why.push('상승: 38.2%/EMA20 분할매수 · 1차 고점/EMA20 확장 · 2차 직전고점');}
+  else{ buy=Math.max(f618,ema60*0.98); s1=Math.min(ema60*1.03,f382); s2=ema60*1.06; why.push('약세: 61.8%/EMA60 저점매수 · 1차 38.2%/EMA60 저항 · 2차 EMA60 상단');}
+  return {buy,s1,s2,f382,f618,ema20,ema60,why};
+}
+function stance(risk, macro){
+  if((risk==='낮음'||risk==='보통') && (macro==='낮음'||macro==='보통')) return {txt:'기회',cls:'riskL'};
+  if(risk==='높음' || macro==='높음') return {txt:'경계',cls:'riskH'};
+  return {txt:'관망',cls:'riskM'};
+}
+
+/* 거시 */
+function readMacro(){
+  const g=id=>parseFloat((document.getElementById(id).value||'').replace(',','.'));
+  return {dxy:g('m_dxy'), vix:g('m_vix'), u10:g('m_us10y'), wti:g('m_wti'), ndq:g('m_ndq'), bdc:g('m_bdc')};
+}
+function scoreMacro(m){
+  let s=50,h=[];
+  if(isFinite(m.dxy)){ if(m.dxy>105){s+=8;h.push('DXY↑');} else if(m.dxy<103){s-=4;h.push('DXY↓');} }
+  if(isFinite(m.vix)){ if(m.vix>=20){s+=10;h.push('VIX20+');} else if(m.vix<14){s-=6;h.push('VIX↓');} }
+  if(isFinite(m.u10)){ if(m.u10>=4.5){s+=7;h.push('10Y↑');} else if(m.u10<4.0){s-=4;h.push('10Y↓');} }
+  if(isFinite(m.wti) and m.wti>=90){s+=4;h.push('유가↑')}
+  if(isFinite(m.ndq)){ if(m.ndq<=-1){s+=6;h.push('나스닥↓');} else if(m.ndq>=1){s-=6;h.push('나스닥↑');} }
+  if(isFinite(m.bdc)){ if(m.bdc>=55){s+=3;h.push('BTC.D↑');} else if(m.bdc<=50){s-=2;h.push('BTC.D↓');} }
+  let txt='보통',cls='riskM'; if(s>=66){txt='높음';cls='riskH'} else if(s<=34){txt='낮음';cls='riskL'};
+  return {txt,cls,h: h.length?h.join(' · '):'중립'};
+}
+function saveMacro(){ localStorage.setItem('macro_v1', JSON.stringify(readMacro())); document.getElementById('macroSaved').style.display='inline'; setTimeout(()=>document.getElementById('macroSaved').style.display='none',1200); applyMacro(); }
+function restoreMacro(){ try{const m=JSON.parse(localStorage.getItem('macro_v1')||'{}'); for(const [k,v] of Object.entries({m_dxy:m.dxy,m_vix:m.vix,m_us10y:m.u10,m_wti:m.wti,m_ndq:m.ndq,m_bdc:m.bdc})){ if(v!==undefined) document.getElementById(k).value=v; }}catch(e){} applyMacro(); }
+function applyMacro(){ const r=scoreMacro(readMacro()); const b=document.getElementById('macroRiskB'); b.className='badge '+r.cls; document.getElementById('macroRisk').textContent=r.txt; document.getElementById('macroHint').textContent=r.h; }
+
+document.getElementById('macroSave').addEventListener('click', saveMacro);
+window.addEventListener('load', restoreMacro);
+
+/* 검색 실행 */
+async function doSearch(preset){
+  document.getElementById('load1').style.display='inline';
+  await loadMarkets();
+  try{
+    let target=preset;
+    if(!target){
+      const kw=(q.value||'').trim().toLowerCase();
+      const base=KRW.map(x=>({market:x.market,name:x.korean_name,sym:x.market.split('-')[1]}));
+      target = base.find(x=>x.name.toLowerCase()===kw||x.sym.toLowerCase()===kw||x.market.toLowerCase()===kw) || base.find(x=>x.name.toLowerCase().includes(kw)) || base.find(x=>x.sym.toLowerCase().includes(kw));
+      if(!target){ alert('검색 결과가 없어요. (업비트 KRW 기준)'); return; }
+    }
+    const [tk, cds] = await Promise.all([
+      fetch('https://api.upbit.com/v1/ticker?markets='+target.market).then(r=>r.json()),
+      fetch('https://api.upbit.com/v1/candles/days?market='+target.market+'&count=60').then(r=>r.json())
+    ]);
+    const t=tk?.[0]||{}, price=+t.trade_price||0, ch=((+t.signed_change_rate)||0)*100;
+    document.getElementById('sel').style.display='block';
+    document.getElementById('badges').style.display='block';
+    document.getElementById('selName').textContent=target.name;
+    document.getElementById('selSym').textContent='('+target.sym+')';
+    document.getElementById('selPrice').textContent=fmtKRW(price);
+    document.getElementById('selPct').textContent=pct(ch);
+    document.getElementById('selEx').textContent='업비트 KRW';
+    if(Array.isArray(cds)&&cds.length){
+      const zs=targets(cds), atr=atrPct(cds,14);
+      const risk = atr>=6?'높음':(atr>=3.5?'보통':'낮음');
+      const m=scoreMacro(readMacro());
+      const st=stance(risk,m.txt); const stEl=document.getElementById('stance'); stEl.textContent=st.txt; stEl.className=st.cls;
+      document.getElementById('autoBuy').textContent='₩'+fmtKRW(zs.buy);
+      document.getElementById('autoSell1').textContent='₩'+fmtKRW(zs.s1);
+      document.getElementById('autoSell2').textContent='₩'+fmtKRW(zs.s2);
+      document.getElementById('risk').textContent=risk; document.getElementById('riskBadge').className='badge '+(risk==='높음'?'riskH':risk==='보통'?'riskM':'riskL');
+      document.getElementById('fib382').style.display='inline-flex'; document.getElementById('fib618').style.display='inline-flex';
+      document.getElementById('fib382v').textContent='₩'+fmtKRW(zs.f382); document.getElementById('fib618v').textContent='₩'+fmtKRW(zs.f618);
+      document.getElementById('one').style.display='block';
+      document.getElementById('one').textContent = `${target.name} · 기술요약: ${zs.why.join(' ')} · 매크로 ${m.txt}(${m.h})`;
+    }
+    window.__cur = {name:target.name, sym:target.sym, market:target.market, price};
+  }finally{ document.getElementById('load1').style.display='none'; }
+}
+document.getElementById('btnSearch').addEventListener('click', ()=>doSearch());
+
+/* 저장/목록 */
+function getMy(){ try{return JSON.parse(localStorage.getItem('my_targets_v1')||'[]')}catch(e){return[]} }
+function setMy(x){ localStorage.setItem('my_targets_v1', JSON.stringify(x)); }
+document.getElementById('btnSave').addEventListener('click', ()=>{
+  const cur=window.__cur; if(!cur){alert('먼저 코인을 검색해 주세요.'); return;}
+  const a=deKRW(document.getElementById('buyKRW').value);
+  const b=deKRW(document.getElementById('sell1KRW').value);
+  const c=deKRW(document.getElementById('sell2KRW').value);
+  const list=getMy().filter(r=>r.market!==cur.market);
+  list.unshift({name:cur.name, sym:cur.sym, market:cur.market, buy:a, s1:b, s2:c, t:Date.now()});
+  setMy(list.slice(0,100));
+  document.getElementById('saved').style.display='inline'; setTimeout(()=>document.getElementById('saved').style.display='none',1200);
+  renderMy(); 
+});
+async function renderMy(){
+  const list=getMy(); const tb=document.getElementById('myT'); tb.innerHTML='';
+  for(const r of list){
+    let price='-'; try{ const t=await fetch('https://api.upbit.com/v1/ticker?markets='+r.market).then(x=>x.json()); price=fmtKRW(t?.[0]?.trade_price||0);}catch(e){}
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${r.name}</td><td>${r.sym}</td><td class="r">₩${price}</td><td class="r">₩${fmtKRW(r.buy)}</td><td class="r">₩${fmtKRW(r.s1)}</td><td class="r">₩${fmtKRW(r.s2)}</td>`;
+    tb.appendChild(tr);
+  }
+}
+renderMy();
+
+/* 상승 TOP */
+async function loadUpbitTop(){
+  try{
+    const ms=await fetch('https://api.upbit.com/v1/market/all?isDetails=true').then(r=>r.json());
+    const krw=ms.filter(x=>x.market.startsWith('KRW-'));
+    const tick=await fetch('https://api.upbit.com/v1/ticker?markets='+krw.map(x=>x.market).join(',')).then(r=>r.json());
+    const map=Object.fromEntries(krw.map(x=>[x.market,{name:x.korean_name,sym:x.market.split('-')[1]}]));
+    const rows=tick.map(t=>{
+      const m=map[t.market]; return {name:m.name, sym:m.sym, ch:(t.signed_change_rate||0)*100, vol:t.acc_trade_price_24h||0};
+    }).sort((a,b)=>b.ch-a.ch).slice(0,TOPN);
+    const tb=document.getElementById('upbitTop'); tb.innerHTML=rows.map(r=>`<tr><td>${r.name}</td><td>${r.sym}</td><td class="r">${pct(r.ch)}</td><td class="r">${volKR(r.vol)}</td></tr>`).join('');
+  }catch(e){ console.warn('upbit top err',e); }
+}
+async function loadBithumbTop(){
+  try{
+    const res=await fetch('https://api.bithumb.com/public/ticker/ALL_KRW').then(r=>r.json());
+    const data=res?.data||{}; const rows=Object.entries(data).filter(([k])=>k!=='date').map(([sym,v])=>{
+      return {name:sym, sym:sym, ch:parseFloat(v.fluctate_rate_24H)||0, vol:parseFloat(v.acc_trade_value_24H)||0};
+    }).sort((a,b)=>b.ch-a.ch).slice(0,TOPN);
+    const tb=document.getElementById('bithumbTop'); tb.innerHTML=rows.map(r=>`<tr><td>${r.name}</td><td>${r.sym}</td><td class="r">${pct(r.ch)}</td><td class="r">${volKR(r.vol)}</td></tr>`).join('');
+  }catch(e){ console.warn('bithumb top err',e); }
+}
+async function refreshTops(){ document.getElementById('load2').style.display='inline'; await Promise.all([loadUpbitTop(),loadBithumbTop()]); document.getElementById('load2').style.display='none'; }
+refreshTops(); setInterval(refreshTops, REFRESH*1000);
+</script>
 </body>
 </html>
