@@ -37,7 +37,6 @@ module.exports = async (req, res) => {
       const cnt = Math.min(Number(req.query.count || 240), 400);
       const j = await httpJSON(`https://api.bithumb.com/public/candlestick/${sym}_KRW/1m`);
       const rows = Array.isArray(j?.data) ? j.data.slice(-cnt) : [];
-      // [ ts(ms), open, close, high, low, volume ]
       return res.status(200).json({ ok: true, data: rows });
     }
 
