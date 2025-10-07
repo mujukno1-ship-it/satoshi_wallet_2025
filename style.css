@@ -3,3 +3,4 @@
   --bg: #ffffff;
 }
 body { background: var(--bg); }
+.hidden{display:none !important}
