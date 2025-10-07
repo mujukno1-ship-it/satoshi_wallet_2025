@@ -1,6 +1,5 @@
-// api/upbit.js
-import fetch from "node-fetch";
-
+// /api/upbit.js
+// Vercel Node 런타임(global fetch 사용, node-fetch 불필요)
 async function httpJSON(url, tries = 2) {
   let lastErr;
   for (let i = 0; i < tries; i++) {
@@ -17,13 +16,13 @@ async function httpJSON(url, tries = 2) {
   throw lastErr || new Error("fetch failed");
 }
 
-export default async function handler(req, res) {
+module.exports = async (req, res) => {
   try {
-    const { fn } = req.query;
+    const { fn } = req.query || {};
 
     if (fn === "markets") {
       const j = await httpJSON("https://api.upbit.com/v1/market/all?isDetails=true");
-      return res.status(200).json({ ok: true, data: j, markets: j });
+      return res.status(200).json({ ok: true, data: j });
     }
 
     if (fn === "candles") {
@@ -39,13 +38,12 @@ export default async function handler(req, res) {
       const market  = req.query.market || "KRW-BTC";
       const url = `https://api.upbit.com/v1/ticker?markets=${encodeURIComponent(market)}`;
       const j = await httpJSON(url);
-      return res.status(200).json({ ok: true, data: j?.[0] || null });
+      return res.status(200).json({ ok: true, data: Array.isArray(j) ? j[0] : null });
     }
 
-    // 모든 KRW 마켓 실시간(급등용)
     if (fn === "tickersKRW") {
       const mk = await httpJSON("https://api.upbit.com/v1/market/all?isDetails=true");
-      const krw = mk.filter(x => (x.market||"").startsWith("KRW-")).map(x => x.market);
+      const krw = (mk || []).filter(x => (x.market||"").startsWith("KRW-")).map(x => x.market);
       let out = [];
       for (let i = 0; i < krw.length; i += 100) {
         const chunk = krw.slice(i, i+100).join(",");
@@ -60,4 +58,4 @@ export default async function handler(req, res) {
   } catch (e) {
     res.status(500).json({ ok: false, error: String(e?.message || e) });
   }
-}
+};
