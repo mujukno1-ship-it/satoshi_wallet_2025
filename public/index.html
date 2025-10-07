@@ -74,13 +74,19 @@ h1{font-size:2.1rem;color:var(--brand);margin:0 0 6px}
     </div>
   </div>
 
+  <!-- 간단 진단 출력 -->
+  <div id="diag" class="muted" style="text-align:center;margin-top:8px;font-size:12px"></div>
+
 <script>
 /* ===== 유틸 ===== */
 const $=id=>document.getElementById(id);
 const fmt=n=>(n===null||n===undefined||isNaN(n))?'-':Number(n).toLocaleString('ko-KR');
+function diag(msg){ const el=$('diag'); if(!el) return; el.textContent = msg; }
+
 function krwTick(p){ if(p>=2e6)return 1000; if(p>=1e6)return 500; if(p>=5e5)return 100; if(p>=1e5)return 50; if(p>=1e4)return 10; if(p>=1e3)return 1; if(p>=100)return .1; if(p>=10)return .01; if(p>=1)return .001; return .0001; }
 const roundToTick=(v,ref)=>{const s=krwTick(ref??v);return Math.round(v/s)*s;}
 function fmtPrice(v,ref){ if(!isFinite(v)) return '-'; const s=krwTick(ref??v); const r=Math.max(roundToTick(v,ref), s); const d=s>=1?0:s>=.1?1:s>=.01?2:s>=.001?3:4; return Number(r).toLocaleString('ko-KR',{minimumFractionDigits:d,maximumFractionDigits:d}); }
+
 function SMA(a,p){if(a.length<p)return[];let o=[],s=0;for(let i=0;i<a.length;i++){s+=a[i];if(i>=p)s-=a[i-p];if(i>=p-1)o.push(s/p)}return o}
 function EMA(a,p){const k=2/(p+1);let o=[],pr=null;for(let i=0;i<a.length;i++){const v=a[i];pr=(pr===null)?v:(v-pr)*k+pr;o.push(pr)}return o}
 function RSI(c,p=14){if(c.length<=p)return[];let g=[],l=[];for(let i=1;i<c.length;i++){const d=c[i]-c[i-1];g.push(Math.max(d,0));l.push(Math.max(-d,0))}let ag=g.slice(0,p).reduce((a,b)=>a+b,0)/p,al=l.slice(0,p).reduce((a,b)=>a+b,0)/p,o=[100-(100/(1+(ag/(al||1e-9))))];for(let i=p;i<g.length;i++){ag=(ag*(p-1)+g[i])/p;al=(al*(p-1)+l[i])/p;o.push(100-(100/(1+(ag/(al||1e-9)))))}return o}
@@ -96,8 +102,7 @@ let SPIKE_WINDOW_MS = 15000;
 
 async function loadConfig(){
   try{
-    const r = await fetch('/config.json',{cache:'no-store'})
-
+    const r = await fetch('/config.json?ts=' + Date.now(), { cache:'no-store' });
     if(r.ok){
       const j = await r.json();
       CFG = { ...CFG, ...j };
@@ -105,7 +110,7 @@ async function loadConfig(){
       SPIKE_WINDOW_MS = Math.max(5, +CFG.spikeWindowSec || 15) * 1000;
       Object.assign(BH_KOR, CFG.bithumbKor || {});
     }
-  }catch(_){}
+  }catch(e){ diag('설정 로드 실패: '+(e?.message||e)); }
 }
 
 /* ===== 상태/토글 ===== */
@@ -244,7 +249,7 @@ async function runSpikeUpbit(){
     });
     $('spikeListUb').replaceChildren(frag);
     $('spikeTsUb').textContent=new Date().toLocaleTimeString('ko-KR');
-  }catch{}
+  }catch(e){ diag('업비트 실시간: '+ (e?.message||e)); }
 }
 
 async function runSpikeBithumb(){
@@ -269,18 +274,22 @@ async function runSpikeBithumb(){
     });
     $('spikeListBh').replaceChildren(frag);
     $('spikeTsBh').textContent=new Date().toLocaleTimeString('ko-KR');
-  }catch{}
+  }catch(e){ diag('빗썸 실시간: '+ (e?.message||e)); }
 }
 
 /* ===== 초기화 ===== */
 $('btnSearch').onclick=onSearch;
 $('coinSearch').addEventListener('keydown',(e)=>{if(e.key==='Enter') onSearch();});
+
 (async function init(){
   await loadConfig();               // 설정/토글/빗썸맵 로딩
   await loadUbMarkets();            // 업비트 마켓/한글명 로딩
   $('coinSearch').value='비트코인';
-  setInterval(runSpikeUpbit, 1000);
-  setInterval(runSpikeBithumb, 1000);
+  setInterval(runSpikeUpbit, 2000);     // 2초 주기 (429 방지)
+  setInterval(runSpikeBithumb, 2000);
+  // 페이지 로딩 직후 1회 즉시 실행
+  runSpikeUpbit();
+  runSpikeBithumb();
 })();
 </script>
 </body>
