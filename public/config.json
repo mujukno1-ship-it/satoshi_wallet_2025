@@ -1,5 +1,9 @@
 {
-  "apiBase": "https://satoshi-wallet-2025-vdlv.vercel.app",
-  "realtimeLimit": 8,
-  "refreshSec": 15
+  "api": {
+    "upbit": "/api/upbit",
+    "bithumb": "/api/bithumb"
+  },
+  "ui": {
+    "showServerText": true
+  }
 }
