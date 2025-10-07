@@ -74,11 +74,9 @@ h1{font-size:2.1rem;color:var(--brand);margin:0 0 6px}
     </div>
   </div>
 
-  <!-- 간단 진단 출력 -->
   <div id="diag" class="muted" style="text-align:center;margin-top:8px;font-size:12px"></div>
 
 <script>
-/* ===== 유틸 ===== */
 const $=id=>document.getElementById(id);
 const fmt=n=>(n===null||n===undefined||isNaN(n))?'-':Number(n).toLocaleString('ko-KR');
 function diag(msg){ const el=$('diag'); if(!el) return; el.textContent = msg; }
@@ -95,7 +93,6 @@ function hhll(a,n){const x=a.slice(-n);return{hh:Math.max(...x),ll:Math.min(...x
 function stdev(arr){const n=arr.length;if(!n)return 0;const m=arr.reduce((a,b)=>a+b,0)/n;const v=arr.reduce((a,b)=>a+(b-m)*(b-m),0)/n;return Math.sqrt(v)}
 function zComment(uptrend,atrPct){ if(atrPct>4.5) return "변동성 과열, 손절 우선. 추격매수 금지."; if(uptrend && atrPct<2) return "완만한 상승 추세. 분할매수 구간 탐색."; if(!uptrend && atrPct>3) return "하락 변동성 확대. 반등 전까지 관망 권장."; return "추세 확인 후 대응. 과도한 레버리지는 금물."; }
 
-/* ===== 설정 로더 ===== */
 let CFG = { showExchangePrefix:false, spikeWindowSec:15, bithumbKor:{} };
 let SHOW_EX_PREFIX = false;
 let SPIKE_WINDOW_MS = 15000;
@@ -113,12 +110,10 @@ async function loadConfig(){
   }catch(e){ diag('설정 로드 실패: '+(e?.message||e)); }
 }
 
-/* ===== 상태/토글 ===== */
 let EXCHANGE='UPBIT';
 $('exUpbit').onclick=()=>{EXCHANGE='UPBIT';$('exUpbit').classList.add('on');$('exBithumb').classList.remove('on');};
 $('exBithumb').onclick=()=>{EXCHANGE='BITHUMB';$('exBithumb').classList.add('on');$('exUpbit').classList.remove('on');};
 
-/* ===== 업비트 마켓/한글명 ===== */
 let UB_MARKETS=[], UB_KOR=new Map(), UB_ENG=new Map(), UB_SYM=new Map();
 async function loadUbMarkets(){
   const r=await fetch('/api/upbit?fn=markets',{cache:'no-store'}); const j=await r.json();
@@ -132,7 +127,6 @@ async function loadUbMarkets(){
   });
 }
 
-/* ===== 빗썸 한글명(기본 + config 병합) ===== */
 const BH_KOR_DEFAULT = {
   BTC:'비트코인', ETH:'이더리움', XRP:'리플', ADA:'에이다', SOL:'솔라나', DOGE:'도지코인', SHIB:'시바이누',
   BCH:'비트코인캐시', ETC:'이더리움클래식', TRX:'트론', DOT:'폴카닷', MATIC:'폴리곤', LTC:'라이트코인',
@@ -143,7 +137,6 @@ const BH_KOR_DEFAULT = {
 };
 const BH_KOR = { ...BH_KOR_DEFAULT };
 
-/* ===== 데이터 로더 ===== */
 async function fetchUbCandles(market){
   const r=await fetch(`/api/upbit?fn=candles&minutes=1&market=${encodeURIComponent(market)}&count=240`,{cache:'no-store'}); const j=await r.json();
   const rows=Array.isArray(j?.data)?j.data:[]; return rows.map(x=>({t:new Date(x.candle_date_time_kst||x.timestamp),c:x.trade_price,h:x.high_price,l:x.low_price})).reverse();
@@ -159,7 +152,6 @@ async function fetchBhTicker(symbol){
   const r=await fetch(`/api/bithumb?fn=ticker&symbol=${encodeURIComponent(symbol)}`,{cache:'no-store'}); const j=await r.json(); return j?.data||null;
 }
 
-/* ===== 검색 ===== */
 function resolveUbMarket(q){
   if(!q) return 'KRW-BTC';
   const raw=q.trim(); const up=raw.toUpperCase(); const low=raw.toLowerCase();
@@ -224,7 +216,6 @@ async function onSearch(){
   $('result').style.display='block';
 }
 
-/* ===== 실시간 급등(업비트/빗썸 분리) ===== */
 let ubSnap=new Map(), bhSnap=new Map();
 
 async function runSpikeUpbit(){
@@ -277,17 +268,15 @@ async function runSpikeBithumb(){
   }catch(e){ diag('빗썸 실시간: '+ (e?.message||e)); }
 }
 
-/* ===== 초기화 ===== */
 $('btnSearch').onclick=onSearch;
 $('coinSearch').addEventListener('keydown',(e)=>{if(e.key==='Enter') onSearch();});
 
 (async function init(){
-  await loadConfig();               // 설정/토글/빗썸맵 로딩
-  await loadUbMarkets();            // 업비트 마켓/한글명 로딩
+  await loadConfig();
+  await loadUbMarkets();
   $('coinSearch').value='비트코인';
-  setInterval(runSpikeUpbit, 2000);     // 2초 주기 (429 방지)
+  setInterval(runSpikeUpbit, 2000);
   setInterval(runSpikeBithumb, 2000);
-  // 페이지 로딩 직후 1회 즉시 실행
   runSpikeUpbit();
   runSpikeBithumb();
 })();
