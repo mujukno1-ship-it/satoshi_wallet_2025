@@ -43,7 +43,6 @@
     .badge.err{color:#fecaca;border-color:#7f1d1d;background:#2f1313}
     td.right.mono{min-width:110px} td.pct{min-width:72px}
     #aiChips,#signalChips{min-height:34px}
-    /* 화면에서만 숨길 때 사용할 클래스 */
     .hidden{display:none !important}
   </style>
 </head>
@@ -149,6 +148,37 @@ const load = (k,d)=> { try{ let v=JSON.parse(localStorage.getItem(k)); return v?
 const toNum = x => { const n=parseFloat(String(x||'').replace(/[^0-9.\-]/g,'')); return isNaN(n)?null:n; };
 const raf = (fn)=> requestAnimationFrame(fn);
 
+/* === 업비트 KRW 호가단위(근사) + 가격 포맷(저가코인 1/0 문제 해결) === */
+function krwTick(p){
+  if (p >= 2000000) return 1000;
+  if (p >= 1000000) return 500;
+  if (p >= 500000)  return 100;
+  if (p >= 100000)  return 50;
+  if (p >= 10000)   return 10;
+  if (p >= 1000)    return 1;
+  if (p >= 100)     return 0.1;
+  if (p >= 10)      return 0.01;
+  if (p >= 1)       return 0.001;
+  return 0.0001; // ★ 1원 미만
+}
+function roundToTick(v, priceRef){
+  if (!isFinite(v)) return v;
+  const step = krwTick(priceRef ?? v);
+  return Math.round(v / step) * step;
+}
+function fmtPrice(v, priceRef){
+  if (v===null || v===undefined || !isFinite(v)) return '-';
+  const step = krwTick(priceRef ?? v);
+  const rounded = roundToTick(v, priceRef);
+  const decimals =
+    step >= 1 ? 0 :
+    step >= 0.1 ? 1 :
+    step >= 0.01 ? 2 :
+    step >= 0.001 ? 3 : 4;  // ★ 0.0001 지원
+  const safe = Math.max(rounded, step); // ★ 최소 한 틱 이상 보장(0 표시 방지)
+  return Number(safe).toLocaleString('ko-KR', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+}
+
 /* ========== 상태/버튼 ========== */
 const stsApi=$('sts-api'), stsUpdated=$('sts-updated');
 const btnRefresh=$('btn-refresh'), btnAuto=$('btn-auto');
@@ -167,7 +197,7 @@ function paintAiChips({phase='중립', spike='—', risk=2, acc=92, base='-'}) {
   if(spike && spike!=='—') frag.appendChild(mk(spike, spike.includes('급락')?'danger':'ok'));
   frag.appendChild(mk(risk===1?'위험도 낮음':risk===2?'위험도 보통':'위험도 높음', risk===1?'ok':risk===2?'warn':'danger'));
   frag.appendChild(mk(`정확도 ${(+acc).toFixed(1)}%`, 'ok'));
-  frag.appendChild(mk(`현재가 ₩${fmt(base)}`, ''));
+  frag.appendChild(mk(`현재가 ₩${fmtPrice(base, base)}`, ''));
   aiChips.replaceChildren(frag);
 }
 
@@ -182,7 +212,7 @@ async function loadMarkets(){
     setStatus(true,'정상');
   }catch(e){ setStatus(false,'연결 오류'); }
 }
-const searchInput=$('searchInput'), chips=$('searchChips');
+const searchInput=$('searchInput');
 function setChips(items){
   const frag=document.createDocumentFragment();
   items.slice(0,5).forEach(x=>{
@@ -208,7 +238,6 @@ $('btnSearch').addEventListener('click', ()=>{
   const q=searchInput.value.trim(); const fb='KRW-BTC';
   if(!q){ analyze(fb); return; }
   const up=q.toUpperCase();
-  // 우선순위: 정확일치 > 심볼뒤 일치 > 한글/영문 일치 > 포함
   const m =
     upbitMarkets.find(x=>x.market===up) ||
     upbitMarkets.find(x=>x.market.endsWith('-'+up)) ||
@@ -248,9 +277,16 @@ function fullsetTargets(candles){
          stop=Math.min(buy1-atr*1.0,ll-atr*0.3); }
   if(rsi<38){ buy1*=0.997; buy2*=0.994; }
   if(rsi>65){ sell1*=1.004; sell2*=1.006; }
-  const phase=marketPhase(rsi,macDiff,ema20,ema50), spike=spikeTag(v), risk=riskFromAtr(atrPct), acc=roughAccuracy(c,rsiArr,atrPct);
-  const R=v=>Math.round(v);
-  return { price:R(price), buy1:R(buy1), buy2:R(buy2), sell1:R(sell1), sell2:R(sell2), stop:Math.max(1,R(stop)), phase, spike, risk, acc };
+  // ★ 안전 보정: 음수/NaN/극소값 방어
+  const step = krwTick(price);
+  const fix = v => !isFinite(v) ? step : Math.max(v, step);
+  return {
+    price: fix(price),
+    buy1: fix(buy1), buy2: fix(buy2),
+    sell1: fix(sell1), sell2: fix(sell2),
+    stop: fix(stop),
+    phase, spike, risk, acc
+  };
 }
 
 /* ========== 분석(검색 시 즉시) ========== */
@@ -267,9 +303,9 @@ async function analyze(market){
       paintAiChips({phase:res.phase, spike:res.spike, risk:res.risk, acc:res.acc, base:res.price});
       const frag=document.createDocumentFragment();
       const mk=(t,cls)=>{ const s=document.createElement('span'); s.className='chip '+(cls||''); s.textContent=t; return s; };
-      frag.appendChild(mk(`매수1: ₩${fmt(res.buy1)} · 매수2: ₩${fmt(res.buy2)}`,'ok'));
-      frag.appendChild(mk(`매도1: ₩${fmt(res.sell1)} · 매도2: ₩${fmt(res.sell2)}`,'warn'));
-      frag.appendChild(mk(`손절: ₩${fmt(res.stop)}`,'danger'));
+      frag.appendChild(mk(`매수1: ₩${fmtPrice(res.buy1, res.price)} · 매수2: ₩${fmtPrice(res.buy2, res.price)}`,'ok'));
+      frag.appendChild(mk(`매도1: ₩${fmtPrice(res.sell1, res.price)} · 매도2: ₩${fmtPrice(res.sell2, res.price)}`,'warn'));
+      frag.appendChild(mk(`손절: ₩${fmtPrice(res.stop,  res.price)}`,'danger'));
       sigchips.replaceChildren(frag);
 
       const tb=document.querySelector('#signalTable tbody');
@@ -278,11 +314,11 @@ async function analyze(market){
         <td>${res.phase}</td>
         <td>${res.risk===1?'낮음':res.risk===2?'보통':'높음'}</td>
         <td>${res.acc.toFixed(1)}%</td>
-        <td class="right mono">${fmt(res.buy1)}</td>
-        <td class="right mono">${fmt(res.buy2)}</td>
-        <td class="right mono">${fmt(res.sell1)}</td>
-        <td class="right mono">${fmt(res.sell2)}</td>
-        <td class="right mono">${fmt(res.stop)}</td>
+        <td class="right mono">${fmtPrice(res.buy1, res.price)}</td>
+        <td class="right mono">${fmtPrice(res.buy2, res.price)}</td>
+        <td class="right mono">${fmtPrice(res.sell1, res.price)}</td>
+        <td class="right mono">${fmtPrice(res.sell2, res.price)}</td>
+        <td class="right mono">${fmtPrice(res.stop,  res.price)}</td>
       </tr>`;
       setStatus(true,'정상'); setUpdated();
     });
@@ -330,7 +366,7 @@ async function refreshMerged(){
   raf(()=>{ renderMerged(merged); setUpdated(); });
 }
 
-/* ========== 매크로 ========== */
+/* ========== 매크로 (저장만 유지) ========== */
 const macroIds=['dxy','vix','ust10y','wti','nq','btcd'];
 $('saveMacro').onclick=()=>{const vals={};macroIds.forEach(id=>vals[id]=($(id).value||'').trim());save('macro',vals);scoreMacro(vals,true);};
 (function(){const vals=load('macro',{});macroIds.forEach(id=>{const v=vals[id];if(v!==undefined)$(id).value=v;});scoreMacro(vals,false);}());
@@ -348,12 +384,10 @@ function scoreMacro(vals,blink){
 }
 
 /* ========== 표시/숨김(거시경제) + 초기화/루프 ========== */
-// 화면에서만 숨김(기존 기능/저장 로직은 유지)
 if (!APP.SHOW_MACRO_PANEL) {
   const m = document.getElementById('macroPanel');
   if (m) m.classList.add('hidden');
 }
-// (선택) Shift+M 으로 토글
 document.addEventListener('keydown', (e)=>{
   if (e.key.toLowerCase()==='m' && e.shiftKey) {
     const m = document.getElementById('macroPanel');
@@ -374,7 +408,7 @@ btnAuto.addEventListener('click', ()=>{
   // 기본 1초 루프
   setInterval(()=>{ refreshMerged(); }, APP.INTERVAL_MS);
 
-  // 시작 시 검색 실행: 입력값이 있으면 그 코인, 아니면 BTC
+  // 시작 시 검색: 입력값 있으면 그 코인, 없으면 BTC
   const q=($('searchInput').value||'').trim();
   if(q){ $('btnSearch').click(); } else { analyze('KRW-BTC'); }
 })();
