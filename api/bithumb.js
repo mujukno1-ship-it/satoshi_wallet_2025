@@ -10,7 +10,10 @@ async function httpJSON(url, tries = 2) {
       const j = await r.json();
       if (j?.status && j.status !== "0000") throw new Error(`BH err ${j.status}`);
       return j;
-    } catch (e) { lastErr = e; await new Promise(r => setTimeout(r, 150 + Math.random()*200)); }
+    } catch (e) {
+      lastErr = e;
+      await new Promise(r => setTimeout(r, 150 + Math.random()*200));
+    }
   }
   throw lastErr || new Error("fetch failed");
 }
@@ -19,7 +22,7 @@ export default async function handler(req, res) {
   try {
     const { fn } = req.query;
 
-    // 모든 KRW 마켓 실시간 (급등용)
+    // 전체(급등용)
     if (fn === "all") {
       const j = await httpJSON("https://api.bithumb.com/public/ticker/ALL_KRW");
       return res.status(200).json({ ok: true, data: j?.data || {} });
@@ -32,13 +35,13 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true, data: j?.data || null });
     }
 
-    // 1분 캔들 (최대 200)
+    // 1분 캔들
     if (fn === "candles") {
       const sym = (req.query.symbol || "BTC").toUpperCase();
       const cnt = Math.min(Number(req.query.count || 240), 400);
       const j = await httpJSON(`https://api.bithumb.com/public/candlestick/${sym}_KRW/1m`);
-      // 형식: [ timestamp(ms), open, close, high, low, volume ]
       const rows = Array.isArray(j?.data) ? j.data.slice(-cnt) : [];
+      // [ ts(ms), open, close, high, low, volume ]
       return res.status(200).json({ ok: true, data: rows });
     }
 
