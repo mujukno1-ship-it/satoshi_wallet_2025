@@ -96,7 +96,8 @@ let SPIKE_WINDOW_MS = 15000;
 
 async function loadConfig(){
   try{
-    const r = await fetch('/public/config.json',{cache:'no-store'});
+    const r = await fetch('/config.json',{cache:'no-store'})
+
     if(r.ok){
       const j = await r.json();
       CFG = { ...CFG, ...j };
