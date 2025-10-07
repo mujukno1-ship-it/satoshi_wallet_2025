@@ -5,10 +5,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>사토시의지갑</title>
 <style>
-:root {
-  --bg:#0e1621; --panel:#111c27; --panel2:#0f1924; --text:#e8f0f7;
-  --muted:#9fb3c8; --green:#28d07f; --red:#ff5d73; --line:#1e2a36;
-}
+:root { --bg:#0e1621; --panel:#111c27; --panel2:#0f1924; --text:#e8f0f7; --muted:#9fb3c8; --green:#28d07f; --red:#ff5d73; --line:#1e2a36; }
+*{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Apple SD Gothic Neo,Noto Sans KR,sans-serif}
 .wrap{max-width:1250px;margin:28px auto;padding:0 16px}
 .title{font-weight:800;font-size:28px;margin-bottom:12px}
@@ -18,7 +16,7 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-appl
 .tab{padding:8px 14px;border-radius:10px;border:1px solid var(--line);background:#0c1420;cursor:pointer}
 .tab.active{background:#0a3a55;border-color:#135c87}
 .search{display:flex;gap:8px;margin:10px 0}
-.search input{flex:1;padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:#0b1621;color:var(--text)}
+.search input{flex:1;padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:#0b1621;color:#eaf4ff}
 .btn{padding:12px 16px;border-radius:12px;border:1px solid var(--line);background:#0c3450;color:#d8f3ff;cursor:pointer}
 .grid{display:grid;grid-template-columns:repeat(10,1fr);gap:8px;margin-top:10px;font-size:12px;color:#bcd0e4}
 .grid div{padding:8px;border:1px dashed transparent;border-radius:10px}
@@ -30,6 +28,7 @@ body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-appl
 .muted{color:#7f99b4}
 .footer{margin-top:10px;color:#6f8aa6;font-size:11px}
 code#server-text{color:#a6d4ff}
+.badge{display:inline-block;padding:2px 8px;border-radius:999px;background:#0e2031;border:1px solid #1a3147;color:#99bbd2;font-size:11px;margin-left:6px}
 </style>
 </head>
 <body>
@@ -37,25 +36,29 @@ code#server-text{color:#a6d4ff}
   <div class="title">사토시의지갑
     <span class="server">서버: <code id="server-text"></code></span>
   </div>
+
   <div class="panel">
     <div class="tabs">
       <button class="tab active" data-ex="upbit">업비트</button>
       <button class="tab" data-ex="bithumb">빗썸</button>
+      <span class="badge" id="last-updated">—</span>
     </div>
+
     <div class="search">
-      <input id="q" placeholder="코인명/심볼/시장 (예: 비트코인, BTC, KRW-BTC, 리플)" />
+      <input id="q" placeholder="코인명/심볼/시장 (예: 비트코인, BTC, KRW-BTC, 리플)" autocomplete="off" />
       <button class="btn" id="btn-search">검색</button>
     </div>
+
     <div id="result" class="grid">
-      <div>기준봉</div><div>시장상태</div><div>위험도</div><div>상승예상</div><div>하락예상</div>
+      <div>기준봉</div><div>시장상태</div><div>위험도</div><div>상승 예상</div><div>하락 예상</div>
       <div>매수1</div><div>매수2</div><div>매도1</div><div>매도2</div><div>손절</div>
     </div>
   </div>
 
-  <div class="row" style="display:flex;gap:16px;margin-top:18px">
+  <div style="display:flex;gap:16px;margin-top:18px">
     <div style="flex:1">
       <div class="panel">
-        <div style="display:flex;justify-content:space-between">
+        <div style="display:flex;justify-content:space-between;align-items:center">
           <div>· 실시간 급등 (업비트)</div>
           <div class="muted" id="clock-upbit">—</div>
         </div>
@@ -64,7 +67,7 @@ code#server-text{color:#a6d4ff}
     </div>
     <div style="flex:1">
       <div class="panel">
-        <div style="display:flex;justify-content:space-between">
+        <div style="display:flex;justify-content:space-between;align-items:center">
           <div>· 실시간 급등 (빗썸)</div>
           <div class="muted" id="clock-bithumb">—</div>
         </div>
@@ -77,79 +80,143 @@ code#server-text{color:#a6d4ff}
 </div>
 
 <script>
-document.getElementById("server-text").textContent = location.origin;
-const API_UPBIT="/api/upbit",API_BITHUMB="/api/bithumb";
-const tabs=document.querySelectorAll(".tab");
-let EX="upbit";
-tabs.forEach(t=>t.addEventListener("click",()=>{tabs.forEach(x=>x.classList.remove("active"));t.classList.add("active");EX=t.dataset.ex;}));
+/* ---------- 0) 공통 ---------- */
+document.getElementById('server-text').textContent = location.origin;
+const API_UPBIT = '/api/upbit';
+const API_BITHUMB = '/api/bithumb';
 
-const NAME_KR={
-  "BTC":"비트코인","ETH":"이더리움","BCH":"비트코인캐시","ETC":"이더리움클래식",
-  "XRP":"리플","DOGE":"도지코인","SOL":"솔라나","ADA":"에이다",
-  "SHIB":"시바이누","CELO":"셀로","API3":"에이피아이쓰리","BNB":"바이낸스코인",
-  "CAKE":"팬케이크스왑","ZETA":"제타","SOON":"순","NFT":"엔에프티","XTER":"엑스터","LISTA":"리스타","CAMP":"캠프"
+const tabs = document.querySelectorAll('.tab');
+let EX = 'upbit';
+tabs.forEach(t=>t.addEventListener('click',()=>{
+  tabs.forEach(x=>x.classList.remove('active'));
+  t.classList.add('active'); EX = t.dataset.ex;
+}));
+
+/* ---------- 1) 한글명 매핑 로더(신규) ---------- */
+// 기본 내장(최소 안전셋) — 서버에서 한글명이 오면 그걸 최우선 사용
+const BUILTIN_KO = {
+  "BTC":"비트코인","ETH":"이더리움","BCH":"비트코인캐시","ETC":"이더리움클래식","XRP":"리플",
+  "DOGE":"도지코인","SOL":"솔라나","ADA":"에이다","SHIB":"시바이누","CELO":"셀로",
+  "API3":"에이피아이쓰리","CAKE":"팬케이크스왑","BNB":"바이낸스코인","ZETA":"제타","LISTA":"리스타",
+  "NFT":"엔에프티","SOON":"순",
+  "XTER":"엑스터","GHX":"지에이치엑스","ROA":"로아","POLA":"폴라리스쉐어","EPT":"이피티",
+  "SOFI":"소피","BLUE":"블루","THE":"더"
 };
+let NAME_KR = {...BUILTIN_KO}; // fetch 성공 시 merge
 
-function fmtp(v){const n=Number(v)||0;return (n>=0?"+":"")+n.toFixed(2)+"%";}
-function fmtn(v){if(v===undefined)return"—";const n=Number(v);if(isNaN(n))return v;return n.toLocaleString("ko-KR",{maximumFractionDigits:3});}
+async function loadKoMap(){
+  try{
+    const r = await fetch('/symbols_ko.json', {cache:'no-store'});
+    if(r.ok){
+      const j = await r.json();
+      NAME_KR = {...BUILTIN_KO, ...j};
+    }
+  }catch(e){ /* 파일 없어도 무시 */ }
+}
+function koNameByRow(row){
+  // 서버가 한글 필드를 줄 경우 최우선 사용
+  const k = row?.korean || row?.korean_name || row?.korName;
+  if(k) return k;
+  // 그 외 심볼 유추
+  const sym = String(row?.symbol || row?.code || row?.market || '').replace(/^KRW-/,'').toUpperCase();
+  return NAME_KR[sym] || sym || '-';
+}
 
+/* ---------- 2) 검색 ---------- */
+const qEl = document.getElementById('q');
+document.getElementById('btn-search').addEventListener('click', doSearch);
+qEl.addEventListener('keydown', e=>{ if(e.key==='Enter') doSearch(); });
+
+function fmtp(v){const n=Number(v)||0;return (n>=0?'+':'')+n.toFixed(2)+'%';}
+function fmtn(v){
+  if(v===undefined||v===null||v==='') return '—';
+  const n=Number(v); if(Number.isNaN(n)) return String(v);
+  return n>=1000?n.toLocaleString('ko-KR'):
+         n>=100?n.toLocaleString('ko-KR',{maximumFractionDigits:1}):
+         n>=10?n.toLocaleString('ko-KR',{maximumFractionDigits:2}):
+                n.toLocaleString('ko-KR',{maximumFractionDigits:3});
+}
 function renderResult(obj){
-  const fields=["base","market","risk","up","down","buy1","buy2","sell1","sell2","cut"];
   const vals={
-    base:obj.base||"1분",
-    market:obj.market||"업비트",
-    risk:obj.risk||"낮음",
-    up:fmtp(obj.up||0),
-    down:fmtp(obj.down||0),
-    buy1:fmtn(obj.buy1||0.018),
-    buy2:fmtn(obj.buy2||0.018),
-    sell1:fmtn(obj.sell1||0.018),
-    sell2:fmtn(obj.sell2||0.018),
-    cut:fmtn(obj.cut||0)
+    base:obj.base||obj.timeframe||'—',
+    market:obj.marketStatus||obj.trend||'—',
+    risk:obj.risk ?? obj.riskScore ?? '—',
+    up:fmtp(obj.upPct ?? obj.up || 0),
+    down:fmtp(obj.downPct ?? obj.down || 0),
+    buy1:fmtn(obj.buy1 ?? obj.bid1),
+    buy2:fmtn(obj.buy2 ?? obj.bid2),
+    sell1:fmtn(obj.sell1 ?? obj.ask1),
+    sell2:fmtn(obj.sell2 ?? obj.ask2),
+    cut:fmtn(obj.stop ?? obj.cut)
   };
-  const grid=document.getElementById("result");
-  grid.innerHTML="";
-  fields.forEach(k=>{
-    const d=document.createElement("div");
+  const grid=document.getElementById('result');
+  grid.innerHTML='';
+  ['base','market','risk','up','down','buy1','buy2','sell1','sell2','cut'].forEach(k=>{
+    const d=document.createElement('div');
     d.textContent=vals[k];
-    if(k==="up"&&parseFloat(vals[k])>0)d.style.color="var(--green)";
-    if(k==="down"&&parseFloat(vals[k])<0)d.style.color="var(--red)";
+    if(k==='up' && Number(vals[k])>0) d.style.color='var(--green)';
+    if(k==='down' && String(vals[k]).startsWith('-')) d.style.color='var(--red)';
     grid.appendChild(d);
   });
 }
-
-async function search(){
-  const q=document.getElementById("q").value.trim();
-  if(!q)return;
-  const norm=q.toUpperCase().replace("KRW-","").replace(/\s+/g,"");
-  const url=EX==="upbit"?`${API_UPBIT}?q=${norm}`:`${API_BITHUMB}?q=${norm}`;
+async function doSearch(){
+  const raw=qEl.value.trim();
+  if(!raw) return;
+  // 간단 정규화
+  const s = raw.toUpperCase().replace(/\s+/g,'');
+  const norm = /^KRW-[A-Z0-9]+$/.test(s) ? s : (s.startsWith('KRW-')?s:'KRW-'+s);
+  const url = EX==='upbit' ? `${API_UPBIT}?q=${encodeURIComponent(norm)}`
+                           : `${API_BITHUMB}?q=${encodeURIComponent(norm)}`;
   try{
-    const r=await fetch(url);const j=await r.json();
-    renderResult(j.data||j.result||j);
-  }catch(e){alert("검색 오류:"+e);}
+    const r = await fetch(url, {headers:{'accept':'application/json'}});
+    const j = await r.json();
+    const first = j.result || j.data || j || {};
+    renderResult(first);
+  }catch(e){
+    alert('검색 오류: '+(e?.message||e));
+  }
 }
 
-document.getElementById("btn-search").onclick=search;
-document.getElementById("q").addEventListener("keydown",e=>{if(e.key==="Enter")search();});
+/* ---------- 3) 급등 리스트 ---------- */
+function renderRiseList(el, arr){
+  el.innerHTML='';
+  if(!Array.isArray(arr)||!arr.length){ el.innerHTML='<div class="muted">데이터 없음</div>'; return; }
+  arr.slice(0,20).forEach(row=>{
+    const name = koNameByRow(row);
+    const chg = Number(row.change || row.chg || row.pct || 0);
+    const div = document.createElement('div');
+    div.className='item';
+    div.innerHTML=`<div>${name}</div><div class="${chg>=0?'pos':'neg'}">${(chg>=0?'+':'')}${chg.toFixed(2)}%</div>`;
+    el.appendChild(div);
+  });
+}
 
 async function refreshLists(){
   try{
-    const [u,b]=await Promise.all([fetch(API_UPBIT),fetch(API_BITHUMB)]);
-    const uj=await u.json(),bj=await b.json();
-    renderList("list-upbit",uj.top||uj.data||[],document.getElementById("clock-upbit"));
-    renderList("list-bithumb",bj.top||bj.data||[],document.getElementById("clock-bithumb"));
-  }catch{}
+    const [u,b] = await Promise.allSettled([
+      fetch(API_UPBIT, {headers:{'accept':'application/json'}}),
+      fetch(API_BITHUMB, {headers:{'accept':'application/json'}})
+    ]);
+    if(u.status==='fulfilled'){
+      const uj=await u.value.json();
+      renderRiseList(document.getElementById('list-upbit'), uj.top||uj.data||uj||[]);
+      document.getElementById('clock-upbit').textContent=new Date().toLocaleTimeString('ko-KR');
+    }
+    if(b.status==='fulfilled'){
+      const bj=await b.value.json();
+      renderRiseList(document.getElementById('list-bithumb'), bj.top||bj.data||bj||[]);
+      document.getElementById('clock-bithumb').textContent=new Date().toLocaleTimeString('ko-KR');
+    }
+    document.getElementById('last-updated').textContent='업데이트: '+new Date().toLocaleTimeString('ko-KR');
+  }catch(e){ /* 조용히 스킵 */ }
 }
-function renderList(id,arr,clock){
-  const el=document.getElementById(id);el.innerHTML="";
-  (arr||[]).slice(0,10).forEach(r=>{
-    const nameKR=NAME_KR[r.symbol]||r.name||r.symbol;
-    const chg=Number(r.change||r.pct||0);
-    el.innerHTML+=`<div class="item"><div>${nameKR}</div><div class="${chg>=0?'pos':'neg'}">${fmtp(chg)}</div></div>`;
-  });
-  clock.textContent=new Date().toLocaleTimeString("ko-KR");
+
+async function init(){
+  await loadKoMap();    // ⬅️ 한글 사전 먼저 로드
+  refreshLists();
+  setInterval(refreshLists, 3000); // 3초 폴링(원하면 1초로 변경)
 }
-refreshLists();setInterval(refreshLists,3000);
+init();
 </script>
 </body>
 </html>
