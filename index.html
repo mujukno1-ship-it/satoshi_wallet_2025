@@ -44,6 +44,13 @@
     .status{display:flex;gap:10px;flex-wrap:wrap}
     .badge{font-size:12px;padding:5px 8px;border-radius:8px;border:1px solid var(--line);background:#0b1b33}
     .badge.err{color:#fecaca;border-color:#7f1d1d;background:#2f1313}
+
+    /* === v38-stable: 1초 갱신 흔들림 방지 === */
+    table.stable { table-layout: fixed; width: 100%; }
+    th, td { white-space: nowrap; }
+    td.right.mono { min-width: 110px; }
+    td.pct { min-width: 72px; }
+    .badge, .chip { min-height: 28px; }
   </style>
 </head>
 <body>
@@ -101,17 +108,17 @@
       <div class="row cols-2">
         <div>
           <b>업비트</b>
-          <table id="upbitTop"><thead><tr><th>코인(한글)</th><th>심볼</th><th class="right">24h</th><th class="right">거래대금(24h)</th></tr></thead><tbody></tbody></table>
+          <table id="upbitTop" class="stable"><thead><tr><th>코인(한글)</th><th>심볼</th><th class="right">24h</th><th class="right">거래대금(24h)</th></tr></thead><tbody></tbody></table>
         </div>
         <div>
           <b>빗썸</b>
-          <table id="bithumbTop"><thead><tr><th>코인(한글)</th><th>심볼</th><th class="right">24h</th><th class="right">거래대금(24h)</th></tr></thead><tbody></tbody></table>
+          <table id="bithumbTop" class="stable"><thead><tr><th>코인(한글)</th><th>심볼</th><th class="right">24h</th><th class="right">거래대금(24h)</th></tr></thead><tbody></tbody></table>
         </div>
       </div>
       <div style="margin-top:12px">
         <b>통합</b>
         <div id="mergedWrap">
-          <table id="mergedTop"><thead><tr><th>거래소</th><th>코인(한글)</th><th>심볼</th><th class="right">24h</th><th class="right">거래대금(24h)</th></tr></thead><tbody></tbody></table>
+          <table id="mergedTop" class="stable"><thead><tr><th>거래소</th><th>코인(한글)</th><th>심볼</th><th class="right">24h</th><th class="right">거래대금(24h)</th></tr></thead><tbody></tbody></table>
         </div>
       </div>
     </div>
@@ -141,17 +148,15 @@
   </div>
 
 <script>
-/* ===================== 설정 & 프록시 (CORS 해결) ===================== */
+/* ===================== 설정 & 프록시 (업비트 CORS 해결) ===================== */
 const APP = {
   INTERVAL_MS: 1000,             // 1초 갱신
-  STRATEGY: 'LEGACY',            // 타점은 기존 산식 고정
+  STRATEGY: 'LEGACY',            // 타점 산식: 기존 유지
   ENABLE_AI_CHIPS: true,         // 시장/급등락/위험/정확도 칩
-  // 업비트 프록시(본인 Vercel로 바꿔도 됨)
-UPBIT_API_BASE: (location.origin + "/api/upbit"),
-USE_PROXY: true
- 
+  // 내 도메인 자동 인식 (vercel/커스텀 공통)
+  UPBIT_API_BASE: (location.origin + "/api/upbit"),
+  USE_PROXY: true
 };
-// 업비트 엔드포인트 헬퍼
 const upbit = (fn, q="") => APP.USE_PROXY
   ? `${APP.UPBIT_API_BASE}?fn=${fn}${q}`
   : (fn==="markets"
@@ -169,10 +174,8 @@ const load = (k,d)=> { try{ let v=JSON.parse(localStorage.getItem(k)); return v?
 const toNum = (x)=>{ const n = parseFloat(String(x||'').replace(/[^0-9.\-]/g,'')); return isNaN(n)?null:n; };
 
 /* ===================== 상태/컨트롤 ===================== */
-const stsApi = $('sts-api');
-const stsUpdated = $('sts-updated');
-const btnRefresh = $('btn-refresh');
-const btnAuto = $('btn-auto');
+const stsApi = $('sts-api'), stsUpdated = $('sts-updated');
+const btnRefresh = $('btn-refresh'), btnAuto = $('btn-auto');
 let timer = null;
 function setStatus(ok,msg){ stsApi.textContent = 'API: ' + msg; stsApi.className = 'badge' + (ok?'':' err'); }
 function setUpdated(){ const now = new Date(); stsUpdated.textContent = '업데이트: ' + now.toLocaleString('ko-KR'); }
@@ -195,7 +198,7 @@ function paintAiChips({phase='중립', spike='—', risk=2, acc=92.0, base='-'})
 }
 
 /* ===================== 업비트 마켓 & 검색 ===================== */
-let upbitMarkets = [];
+let upbitMarkets=[];
 async function loadMarkets(){
   try{
     const r = await fetch(upbit('markets'), {cache:'no-store'});
@@ -205,8 +208,7 @@ async function loadMarkets(){
     setStatus(true,'정상');
   }catch(e){ upbitMarkets=[]; setStatus(false,'업비트 연결 실패(CORS/네트워크)'); }
 }
-const searchInput = $('searchInput');
-const chips = $('searchChips');
+const searchInput = $('searchInput'), chips = $('searchChips');
 function setChips(items){
   chips.innerHTML = '';
   items.slice(0,5).forEach(x=>{
@@ -238,13 +240,12 @@ $('btnSearch').addEventListener('click', ()=>{
   analyze(m.market);
 });
 
-/* ===================== 지표/타점 ===================== */
+/* ===================== 지표/타점 (기존 산식 유지) ===================== */
 function EMA(arr, period){ const k=2/(period+1); let out=[],prev=null; for(let i=0;i<arr.length;i++){ const v=arr[i]; prev=(prev===null)?v:(v-prev)*k+prev; out.push(prev);} return out; }
 function RSI(closes, period=14){ if(closes.length<=period) return []; let gains=[],losses=[]; for(let i=1;i<closes.length;i++){ const d=closes[i]-closes[i-1]; gains.push(Math.max(d,0)); losses.push(Math.max(-d,0)); } let avgG=gains.slice(0,period).reduce((a,b)=>a+b,0)/period; let avgL=losses.slice(0,period).reduce((a,b)=>a+b,0)/period; let out=[100-(100/(1+(avgG/(avgL||1e-9))))]; for(let i=period;i<gains.length;i++){ avgG=(avgG*(period-1)+gains[i])/period; avgL=(avgL*(period-1)+losses[i])/period; out.push(100-(100/(1+(avgG/(avgL||1e-9)))));} return out; }
 function MACD(closes, fast=12, slow=26, signal=9){ const f=EMA(closes,fast), s=EMA(closes,slow); const macd=f.map((v,i)=>v-(s[i]||v)); let sig=EMA(macd.filter(v=>!isNaN(v)),signal); let hist=macd.slice(macd.length-sig.length).map((v,i)=>v-sig[i]); return { macd: macd.slice(macd.length-hist.length), signal: sig, hist }; }
 function detectMarketPhase(rsi, macdDiff){ if (rsi>70 && macdDiff>0) return "불장"; if (rsi>55 && macdDiff>0) return "상승장"; if (rsi<45 && macdDiff<0) return "하락장"; return "중립"; }
 function detectSpike(vols){ if(!vols||vols.length<20) return "—"; const recent=vols.at(-1); const avg10=vols.slice(-11,-1).reduce((a,b)=>a+b,0)/Math.max(1,vols.slice(-11,-1).length||1); if(recent>=avg10*3) return "🚀 급등"; if(recent<=avg10*0.3) return "💣 급락경고"; return "—"; }
-// 레거시 타점(기존 그대로)
 function legacyTargets(price){ const retr382=price*(1-0.382), retr618=price*(1-0.618); const buy=Math.max(retr618,retr382)*0.98; const sell1=price*1.05, sell2=price*1.10; return {buy:Math.round(buy),sell1:Math.round(sell1),sell2:Math.round(sell2)}; }
 
 async function analyze(market){
@@ -266,7 +267,6 @@ async function analyze(market){
     const phase  = detectMarketPhase(rsiArr.at(-1)||50, macDiff);
     const spike  = detectSpike(vols);
 
-    // 위험도/정확도(표시용)
     const high=Math.max(...closes.slice(-60)), low=Math.min(...closes.slice(-60));
     const range=Math.max(1, high-low);
     let risk=2; if((rsiArr.at(-1)||50)>72 || Math.abs(mac.hist.at(-1)||0) > range*0.004) risk=3; if((rsiArr.at(-1)||50)<40 && (mac.hist.at(-1)||0)>0) risk=1;
@@ -307,11 +307,57 @@ function scoreMacro(vals,blink){
   if(blink){ rc.style.boxShadow='0 0 0 2px #38bdf8 inset'; setTimeout(()=>rc.style.boxShadow='none',700); }
 }
 
+/* ===================== 표 렌더러(흔들림 방지) ===================== */
+function stableRenderTable(id, rows, keyField) {
+  const tbody = document.querySelector('#'+id+' tbody');
+  const byKey = new Map();
+  Array.from(tbody.children).forEach(tr => byKey.set(tr.dataset.key, tr));
+
+  rows.forEach(r => {
+    const key = r[keyField];
+    let tr = byKey.get(key);
+    const pctCls = (r.chg>=0?'up':'down');
+
+    if (!tr) {
+      tr = document.createElement('tr');
+      tr.dataset.key = key;
+      tr.innerHTML = (id==='mergedTop')
+        ? `<td></td><td></td><td></td><td class="pct ${pctCls}"></td><td class="right mono"></td>`
+        : `<td></td><td></td><td class="pct ${pctCls}"></td><td class="right mono"></td>`;
+      tbody.appendChild(tr);
+    }
+
+    const tds = tr.children;
+    if (id==='mergedTop') {
+      tds[0].textContent = r.ex;
+      tds[1].textContent = r.name;
+      tds[2].textContent = r.sym;
+      tds[3].className = 'pct ' + pctCls;
+      tds[3].textContent = pfmt(r.chg);
+      tds[4].textContent = fmt(Math.round((r.vol||0)/1e8)) + ' 억';
+    } else {
+      tds[0].textContent = r.name;
+      tds[1].textContent = r.sym;
+      tds[2].className = 'pct ' + pctCls;
+      tds[2].textContent = pfmt(r.chg);
+      tds[3].textContent = fmt(Math.round((r.vol||0)/1e8)) + ' 억';
+    }
+  });
+}
+let _sortTick = 0;
+function maybeSort(arr) {
+  _sortTick = (_sortTick + 1) % 5;   // 5초마다만 재정렬
+  if (_sortTick === 0) arr.sort((a,b)=> b.chg - a.chg);
+  return arr;
+}
+function keepScroll(fn){
+  const y = window.pageYOffset || document.documentElement.scrollTop;
+  fn(); window.scrollTo(0, y);
+}
+
 /* ===================== 상승 TOP(업비트/빗썸) ===================== */
 function clsPct(p){ const cls = p>=0?'up':'down'; return `<span class="${cls}">${pfmt(p)}</span>` }
 function right(v){ return `<span class="right mono">${v}</span>` }
-function renderTable(id, rows){ const tb=document.querySelector('#'+id+' tbody'); tb.innerHTML = rows.map(r=>`<tr>${r.map(c=>`<td>${c}</td>`).join('')}</tr>`).join(''); }
-function renderEmpty(id,msg){ document.querySelector('#'+id+' tbody').innerHTML = `<tr><td colspan="4" class="muted">${msg}</td></tr>`; }
 
 async function fetchUpbitTop(){
   try{
@@ -323,10 +369,10 @@ async function fetchUpbitTop(){
       sym:(x.market||'KRW-?').replace('KRW-',''),
       chg:(x.signed_change_rate||0)*100,
       vol:(x.acc_trade_price_24h||0)
-    })).sort((a,b)=>b.chg-a.chg).slice(0,15);
-    renderTable('upbitTop', t.map(v=>[v.name, v.sym, clsPct(v.chg), right(fmt(Math.round(v.vol/1e8))+' 억')]));
+    }));
+    stableRenderTable('upbitTop', t.map(v=>({name:v.name,sym:v.sym,chg:v.chg,vol:v.vol})), 'sym');
     return t.map(v=>({ex:'업비트', ...v}));
-  }catch(e){ renderEmpty('upbitTop','업비트 요청 실패(CORS 허용 필요).'); return []; }
+  }catch(e){ document.querySelector('#upbitTop tbody').innerHTML = `<tr><td colspan="4" class="muted">업비트 요청 실패(CORS/프록시 확인)</td></tr>`; return []; }
 }
 async function fetchBithumbTop(){
   try{
@@ -335,20 +381,23 @@ async function fetchBithumbTop(){
     if(j.status!=='0000') throw 0;
     const list = Object.entries(j.data)
       .filter(([k,v])=>k!=='date' && v && v.fluctate_rate_24H)
-      .map(([k,v])=>({name:k, chg:parseFloat(v.fluctate_rate_24H), vol:parseFloat(v.acc_trade_value_24H||0)}))
-      .sort((a,b)=>b.chg-a.chg).slice(0,15);
-    renderTable('bithumbTop', list.map(v=>[v.name, v.name, clsPct(v.chg), right(fmt(Math.round(v.vol/1e8))+' 억')]));
+      .map(([k,v])=>({name:k, chg:parseFloat(v.fluctate_rate_24H), vol:parseFloat(v.acc_trade_value_24H||0)}));
+    stableRenderTable('bithumbTop', list.map(v=>({name:v.name,sym:v.name,chg:v.chg,vol:v.vol})), 'sym');
     return list.map(v=>({ex:'빗썸', sym:v.name, name:v.name, chg:v.chg, vol:v.vol}));
-  }catch(e){ renderEmpty('bithumbTop','빗썸 요청 실패(일부 브라우저 CORS 차단).'); return []; }
+  }catch(e){ document.querySelector('#bithumbTop tbody').innerHTML = `<tr><td colspan="4" class="muted">빗썸 요청 실패(네트워크/CORS)</td></tr>`; return []; }
 }
 async function refreshAll(){
   $('refreshNote').textContent='갱신 중…';
   const u = await fetchUpbitTop();
   const b = await fetchBithumbTop();
-  const merged = [...u,...b].sort((a,b)=>b.chg-a.chg).slice(0,20);
-  renderTable('mergedTop', merged.map(v=>[v.ex, v.name, (v.sym||v.name), clsPct(v.chg), right(fmt(Math.round((v.vol||0)/1e8))+' 억')]));
-  $('refreshNote').textContent='1초마다 자동 갱신';
-  setUpdated();
+  keepScroll(()=>{
+    const mergedSorted = maybeSort([...u, ...b]).slice(0,20);
+    stableRenderTable('mergedTop', mergedSorted.map(v=>({
+      ex: v.ex, name: v.name, sym: (v.sym||v.name), chg: v.chg, vol: v.vol
+    })), 'sym');
+    $('refreshNote').textContent='1초마다 자동 갱신';
+    setUpdated();
+  });
 }
 
 /* ===================== 타점 저장 ===================== */
@@ -393,7 +442,6 @@ btnAuto.addEventListener('click', ()=>{
   await loadMarkets();
   renderMarks();
   refreshAll();
-  // 기본 1초 주기
   setInterval(()=>{ refreshAll(); analyze('KRW-BTC'); }, APP.INTERVAL_MS);
 })();
 </script>
