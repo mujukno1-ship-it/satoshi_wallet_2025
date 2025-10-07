@@ -1,0 +1,14 @@
+{
+  "ATR_WEIGHT": 0.8,
+  "BBW_WEIGHT": 0.6,
+  "TREND_WEIGHT": 0.9,
+  "RSI_BULL": 1.0,
+  "RSI_BEAR": 1.0,
+  "CAP_UP": 7.5,
+  "CAP_DN": 7.5,
+  "MIN_MOVE": 0.4,
+  "SPIKE_TH": 2.0,
+  "TOP_N": 10,
+  "REF_MARKET": "KRW-BTC",
+  "AUTO_REFRESH_MS": 1000
+}
