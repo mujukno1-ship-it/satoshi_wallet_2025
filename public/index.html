@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>사토시의지갑 (Satoshi Wallet)</title>
+<style>
+:root{--bg:#0b1220;--panel:#0f172a;--text:#e2e8f0;--sub:#94a3b8;--line:#1e293b;--accent:#0ea5e9;--ok:#22c55e;--warn:#f59e0b;--bad:#ef4444;}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Apple SD Gothic Neo,Noto Sans KR,Malgun Gothic,sans-serif;background:#0b1220;color:var(--text)}
+.wrap{max-width:1200px;margin:24px auto;padding:0 16px}
+h1{font-size:26px;margin:4px 0 18px;opacity:.95}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;margin:12px 0;box-shadow:0 6px 18px var(--line)}
+.badge{font-size:12px;padding:6px 10px;border-radius:999px;border:1px solid var(--line);display:inline-flex;gap:6px;align-items:center;background:#0b132f}
+.btn{padding:10px 14px;border-radius:10px;border:1px solid var(--line);background:#0b132f;color:#e2e8f0;cursor:pointer}
+.btn.active{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+.searchbar{display:flex;gap:8px;align-items:center;position:relative}
+.searchbar input{flex:1;padding:14px;border-radius:12px;border:1px solid var(--line);background:#0b132f;color:#e2e8f0;font-size:15px}
+.searchbar button{padding:12px 16px;border-radius:12px;border:1px solid var(--line);background:var(--accent);color:#001827;font-weight:700;cursor:pointer}
+.hint{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;color:var(--sub);font-size:13px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:900px){.two{grid-template-columns:1fr}}
+.card{padding:12px;border-radius:12px;background:#0b132f;border:1px solid var(--line);min-height:64px}
+.list{display:grid;grid-template-columns:1fr auto;gap:10px 6px}
+.symbol{opacity:.9}
+.pct.up{color:var(--ok)} .pct.down{color:var(--bad)}
+.table{width:100%;border-collapse:collapse;margin-top:12px}
+.table th,.table td{padding:10px 8px;border-bottom:1px dashed var(--line);font-size:14px}
+.table th{color:#8ea2bf;text-align:left}
+.chip{display:inline-flex;gap:8px;align-items:center;padding:6px 10px;border:1px solid var(--line);border-radius:999px;background:#0b132f}
+.chip.ok{color:var(--ok);border-color:#134e2a;background:#071b11}
+.chip.warn{color:var(--warn);border-color:#69410c;background:#1a1308}
+.chip.bad{color:var(--bad);border-color:#5f0b14;background:#1a0a0c}
+.footer{color:#7c8aa5;font-size:13px;margin-top:12px}
+.titleRow{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>사토시의지갑</h1>
+
+  <div class="panel">
+    <div class="titleRow">
+      <div class="hint">검색 → 현재가/매수·매도/손절/상승%·하락%/위험도/코멘트 · 실시간 급등(업비트·빗썸 분리)</div>
+      <div class="chip">서버: <span id="svr"></span></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:10px">
+      <button class="btn active" id="btn-u">업비트</button>
+      <button class="btn" id="btn-b">빗썸</button>
+    </div>
+    <div class="searchbar">
+      <input id="q" placeholder="코인명/심볼/시장 (예: 비트코인, BTC, KRW-BTC, 리플)" />
+      <button id="go">검색</button>
+    </div>
+    <div class="hint" id="msg"></div>
+
+    <table class="table">
+      <thead>
+        <tr>
+          <th>기준봉</th><th>시장상태</th><th>위험도</th>
+          <th>상승 예상</th><th>하락 예상</th>
+          <th>매수1</th><th>매수2</th><th>매도1</th><th>매도2</th><th>손절</th>
+        </tr>
+      </thead>
+      <tbody id="rows"><tr><td colspan="10" style="color:#8ea2bf">검색 후 여기 표시</td></tr></tbody>
+    </table>
+  </div>
+
+  <div class="two">
+    <div class="panel">
+      <div class="titleRow"><div class="badge">• 실시간 급등 <b>(업비트)</b></div><div class="hint" id="utime">-</div></div>
+      <div class="card list" id="ulist">-</div>
+    </div>
+
+    <div class="panel">
+      <div class="titleRow"><div class="badge">• 실시간 급등 <b>(빗썸)</b></div><div class="hint" id="btime">-</div></div>
+      <div class="card list" id="blist">-</div>
+    </div>
+  </div>
+
+  <div class="footer">※ 정보 제공/교육용, 거래 책임은 이용자에게 있습니다.</div>
+</div>
+
+<script>
+let API_BASE="", EX="upbit", CFG={realtimeLimit:8, refreshSec:15};
+
+document.getElementById('btn-u').onclick=()=>{EX="upbit"; sel('u')};
+document.getElementById('btn-b').onclick=()=>{EX="bithumb"; sel('b')};
+document.getElementById('go').onclick=()=>search();
+
+function sel(which){
+  document.getElementById('btn-u').classList.toggle('active', which==='u');
+  document.getElementById('btn-b').classList.toggle('active', which==='b');
+}
+
+function API(path){ return (API_BASE||"") + path; }
+function fmt(x){ return x==null?"-":x.toLocaleString(); }
+function pct(x){ return (x>=0?`<span class="pct up">+${x}%</span>`:`<span class="pct down">${x}%</span>`); }
+
+function rowHtml(it){
+  const rise = it.changePct>0 ? "상승" : "보합/하락";
+  const fall = it.changePct<0 ? "하락" : "보합/상승";
+  const riskChip = it.risk==="낮음"?"chip ok":(it.risk==="중간"?"chip warn":"chip bad");
+  return `<tr>
+    <td>1분</td>
+    <td>${it.exchange}</td>
+    <td><span class="${riskChip}">${it.risk}</span></td>
+    <td>${pct(Math.max(it.changePct,0).toFixed(2))}</td>
+    <td>${pct(Math.min(it.changePct,0).toFixed(2))}</td>
+    <td>${fmt(it.bid1)}</td>
+    <td>${fmt(it.price)}</td>
+    <td>${fmt(it.ask1)}</td>
+    <td>${fmt(it.high)}</td>
+    <td>${fmt(it.stopLoss)}</td>
+  </tr>`;
+}
+
+async function search(){
+  const q = document.getElementById('q').value.trim();
+  if(!q){ document.getElementById('msg').textContent="검색어를 입력하세요."; return; }
+  document.getElementById('msg').textContent="조회중…";
+
+  const url = EX==="upbit" ? API(`/api/upbit?q=${encodeURIComponent(q)}`) : API(`/api/bithumb?q=${encodeURIComponent(q)}`);
+  try{
+    const r = await fetch(url); const j = await r.json();
+    if(!j.items?.length){ document.getElementById('rows').innerHTML = `<tr><td colspan="10" style="color:#8ea2bf">검색 결과 없음</td></tr>`; document.getElementById('msg').textContent=""; return; }
+    document.getElementById('rows').innerHTML = j.items.map(rowHtml).join("");
+    document.getElementById('msg').textContent = `${j.items[0].exchange} / ${j.items.length}건`;
+  }catch(e){
+    document.getElementById('msg').textContent = "조회 실패: "+e;
+  }
+}
+
+async function topList(){
+  try{
+    const [u,b] = await Promise.all([
+      fetch(API(`/api/upbit?top=1&limit=${CFG.realtimeLimit}`)).then(r=>r.json()),
+      fetch(API(`/api/bithumb?top=1&limit=${CFG.realtimeLimit}`)).then(r=>r.json())
+    ]);
+
+    const uhtml = (u.items||[]).map(it=>`<div class="symbol">${it.name}</div><div>${pct(it.changePct)}</div>`).join("");
+    const bhtml = (b.items||[]).map(it=>`<div class="symbol">${it.name}</div><div>${pct(it.changePct)}</div>`).join("");
+
+    document.getElementById('ulist').innerHTML = uhtml || "-";
+    document.getElementById('blist').innerHTML = bhtml || "-";
+    const t = new Date().toLocaleTimeString();
+    document.getElementById('utime').textContent = t;
+    document.getElementById('btime').textContent = t;
+
+  }catch(e){
+    // silent
+  }
+}
+
+async function boot(){
+  try{
+    const cfg = await fetch("config.json?_="+Date.now()).then(r=>r.json());
+    CFG = Object.assign(CFG, cfg||{});
+    API_BASE = (CFG.apiBase||"").replace(/\/$/,"");
+  }catch(_){}
+  document.getElementById('svr').textContent = API_BASE||"(로컬/동일 도메인)";
+  await topList();
+  setInterval(topList, (CFG.refreshSec||15)*1000);
+}
+
+boot();
+</script>
+</body>
+</html>
