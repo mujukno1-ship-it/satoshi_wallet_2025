@@ -75,4 +75,217 @@
               <div>· 실시간 급등 <span class="badge">(업비트)</span></div>
               <div class="muted" id="clock-upbit">—</div>
             </div>
-            <d
+            <div class="list" id="list-upbit"></div>
+          </div>
+        </div>
+        <div class="col">
+          <div class="panel">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+              <div>· 실시간 급등 <span class="badge">(빗썸)</span></div>
+              <div class="muted" id="clock-bithumb">—</div>
+            </div>
+            <div class="list" id="list-bithumb"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="footer">※ 정보 제공/교육용, 거래 책임은 이용자에게 있습니다.</div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+      // 0) 서버 텍스트 자동 표시
+      document.getElementById('server-text').textContent = location.origin;
+
+      // 1) 설정 / 상대경로 (절대주소 금지)
+      const API_UPBIT   = '/api/upbit';
+      const API_BITHUMB = '/api/bithumb';
+
+      // 2) UI 상태
+      const tabs = document.querySelectorAll('.tab');
+      const resultEl = document.getElementById('result');
+      const upListEl = document.getElementById('list-upbit');
+      const btListEl = document.getElementById('list-bithumb');
+      const clockUp  = document.getElementById('clock-upbit');
+      const clockBt  = document.getElementById('clock-bithumb');
+      const lastUpdated = document.getElementById('last-updated');
+
+      // 3) 한글/영문/심볼 정규화 (검색 개선)
+      //    - 필요한 코인은 계속 추가해도 됨
+      const NAME_MAP = {
+        // BTC
+        '비트코인': 'KRW-BTC', 'btc':'KRW-BTC', 'btcusdt':'KRW-BTC', 'krw-btc':'KRW-BTC',
+        // BCH
+        '비트코인캐시': 'KRW-BCH', '비캐':'KRW-BCH', 'bch':'KRW-BCH', 'krw-bch':'KRW-BCH', 'bitcoin cash':'KRW-BCH',
+        // ETH / ETC
+        '이더리움':'KRW-ETH','eth':'KRW-ETH','krw-eth':'KRW-ETH',
+        '이더리움클래식':'KRW-ETC','이더클':'KRW-ETC','etc':'KRW-ETC','krw-etc':'KRW-ETC',
+        // SHIB / CELO / API3 등 자주 쓰는 코인
+        '시바이누':'KRW-SHIB','shib':'KRW-SHIB',
+        '셀로':'KRW-CELO','celo':'KRW-CELO',
+        '에이피아이쓰리':'KRW-API3','api3':'KRW-API3',
+        // 예시 추가
+        '리플':'KRW-XRP','xrp':'KRW-XRP',
+        '솔라나':'KRW-SOL','sol':'KRW-SOL'
+      };
+
+      function normalizeQuery(q){
+        if(!q) return '';
+        const s = q.trim().toLowerCase();
+        // 이미 KRW-XXX 형식이면 그대로
+        if(/^krw-[a-z0-9]+$/.test(s)) return s.toUpperCase();
+        // 스페이스 제거 후 매핑
+        const key = s.replace(/\s+/g,'');
+        if(NAME_MAP[key]) return NAME_MAP[key];
+        // 영문심볼만 들어온 경우 → KRW-심볼 추정
+        if(/^[a-z0-9]{2,10}$/.test(s)) return 'KRW-' + s.toUpperCase();
+        return q; // 최후의 수단
+      }
+
+      // 4) API 호출 유틸 (에러 내성)
+      async function jfetch(url, opts={}){
+        const r = await fetch(url, {headers:{'accept':'application/json'}, ...opts});
+        if(!r.ok) throw new Error('HTTP '+r.status);
+        return await r.json();
+      }
+
+      // 5) 급등 리스트 그리기 (업비트/빗썸 공용)
+      function renderRiseList(el, arr){
+        el.innerHTML = '';
+        if(!Array.isArray(arr) || !arr.length){
+          el.innerHTML = '<div class="muted">데이터 없음</div>';
+          return;
+        }
+        arr.slice(0,20).forEach(row=>{
+          const name = row.name || row.korean || row.symbol || '-';
+          const chg  = Number(row.change || row.chg || row.pct || 0);
+          const div = document.createElement('div');
+          div.className='item';
+          div.innerHTML = `
+            <div>${name}</div>
+            <div class="${chg>=0?'pos':'neg'}">${(chg>=0?'+':'')}${chg.toFixed(2)}%</div>
+          `;
+          el.appendChild(div);
+        });
+      }
+
+      // 6) 검색 결과 테이블(10칸) 렌더
+      function renderResult(obj){
+        // obj는 API 응답을 그대로 매핑 — 없는 값은 공란 처리
+        const fields = ['base','market','risk','up','down','buy1','buy2','sell1','sell2','cut'];
+        const vals = {
+          base: obj.base || obj.timeframe || '—',
+          market: obj.marketStatus || obj.trend || '—',
+          risk: obj.risk ?? obj.riskScore ?? '—',
+          up: fmtp(obj.upPct ?? obj.up || 0),
+          down: fmtp(obj.downPct ?? obj.down || 0),
+          buy1: fmtn(obj.buy1 ?? obj.bid1),
+          buy2: fmtn(obj.buy2 ?? obj.bid2),
+          sell1: fmtn(obj.sell1 ?? obj.ask1),
+          sell2: fmtn(obj.sell2 ?? obj.ask2),
+          cut: fmtn(obj.stop ?? obj.cut)
+        };
+        resultEl.innerHTML = '';
+        fields.forEach(k=>{
+          const d = document.createElement('div');
+          d.textContent = vals[k] ?? '—';
+          resultEl.appendChild(d);
+        });
+      }
+
+      function fmtn(v){
+        if(v===undefined||v===null||v==='') return '—';
+        const n = Number(v);
+        if(Number.isNaN(n)) return String(v);
+        // 업비트/빗썸 KRW 소수단위에 가깝게 표시 (0~3 자리 가변)
+        return n >= 1000 ? n.toLocaleString('ko-KR') 
+             : n >= 100 ? n.toLocaleString('ko-KR',{maximumFractionDigits:1})
+             : n >= 10 ? n.toLocaleString('ko-KR',{maximumFractionDigits:2})
+             : n.toLocaleString('ko-KR',{maximumFractionDigits:3});
+      }
+      function fmtp(v){
+        const n = Number(v)||0;
+        return (n>=0?'+':'') + n.toFixed(2) + '%';
+      }
+
+      // 7) 거래소 탭
+      let EX = localStorage.getItem('ex') || 'upbit';
+      function applyTab(){
+        tabs.forEach(t=>{
+          const on = t.dataset.ex===EX;
+          t.classList.toggle('active', on);
+        });
+      }
+      tabs.forEach(t=>{
+        t.addEventListener('click', ()=>{
+          EX = t.dataset.ex;
+          localStorage.setItem('ex',EX);
+          applyTab();
+        });
+      });
+      applyTab();
+
+      // 8) 검색 버튼 + 엔터 + 디바운스
+      const qEl = document.getElementById('q');
+      document.getElementById('btn-search').addEventListener('click', doSearch);
+      qEl.addEventListener('keydown', e=>{ if(e.key==='Enter') doSearch(); });
+      let searching = false;
+
+      async function doSearch(){
+        if(searching) return;
+        searching = true;
+        try{
+          const raw = qEl.value.trim();
+          const norm = normalizeQuery(raw);
+          const url = EX==='upbit' ? `${API_UPBIT}?q=${encodeURIComponent(norm)}`
+                                   : `${API_BITHUMB}?q=${encodeURIComponent(norm)}`;
+          const data = await jfetch(url);
+          // 응답 예시는 다양한 형식을 가정 → 가장 가능성 높은 키 우선 사용
+          const first = data.result || data.data || data || {};
+          renderResult(first);
+          toast('검색 완료');
+        }catch(err){
+          toast('검색 실패: '+(err?.message||err), true);
+          resultEl.innerHTML = '';
+        }finally{
+          searching=false;
+        }
+      }
+
+      // 9) 급등 리스트 폴링 (상대경로, 교차도메인 X)
+      async function refreshLists(){
+        try{
+          const [u, b] = await Promise.allSettled([
+            jfetch(`${API_UPBIT}?top=1`),     // 서버에서 TOP 리스트를 반환하도록 구현되어 있다고 가정
+            jfetch(`${API_BITHUMB}?top=1`)
+          ]);
+          if(u.status==='fulfilled'){
+            renderRiseList(upListEl, u.value.top || u.value.data || u.value || []);
+            clockUp.textContent = new Date().toLocaleTimeString('ko-KR');
+          }
+          if(b.status==='fulfilled'){
+            renderRiseList(btListEl, b.value.top || b.value.data || b.value || []);
+            clockBt.textContent = new Date().toLocaleTimeString('ko-KR');
+          }
+          lastUpdated.textContent = '업데이트: ' + new Date().toLocaleTimeString('ko-KR');
+        }catch(e){
+          // 조용히 스킵
+        }
+      }
+      refreshLists();
+      // 초단위 너무 짧으면 API 제한이 걸릴 수 있어 3초 기본 (원하면 1초로 변경 가능)
+      setInterval(refreshLists, 3000);
+
+      // 10) 토스트
+      const toastEl = document.getElementById('toast');
+      function toast(msg, danger=false){
+        toastEl.textContent = msg;
+        toastEl.style.borderColor = danger ? '#61313a' : '#1d3b55';
+        toastEl.style.display = 'block';
+        clearTimeout(toastEl._t);
+        toastEl._t = setTimeout(()=>toastEl.style.display='none', 1800);
+      }
+    </script>
+  </body>
+</html>
