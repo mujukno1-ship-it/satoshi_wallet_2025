@@ -1,8 +1,11 @@
 {
   "name": "satoshis-wallet",
-  "version": "9.2.1",
+  "version": "9.3.0",
   "private": true,
   "type": "module",
   "scripts": { "start": "node server.js" },
-  "dependencies": { "express": "^4.19.2", "node-fetch": "^3.3.2" }
+  "dependencies": {
+    "express": "^4.19.2",
+    "node-fetch": "^3.3.2"
+  }
 }
