@@ -44,6 +44,8 @@
     td.right.mono{min-width:110px} td.pct{min-width:72px}
     #aiChips,#signalChips{min-height:34px}
   </style>
+ .hidden{display:none !important}
+ 
 </head>
 <body>
 <div class="wrap">
@@ -129,7 +131,9 @@ const APP = {
   UPBIT_API_BASE: (location.origin + "/api/upbit"),
   USE_PROXY: true,
   ENABLE_AI_CHIPS: true
-};
+  
+  ,SHOW_MACRO_PANEL: false  // false면 화면에서만 숨김(기능/저장 로직 유지)
+ }; 
 const upbit = (fn, q="") => APP.USE_PROXY
   ? `${APP.UPBIT_API_BASE}?fn=${fn}${q}`
   : (fn==="markets"
@@ -354,6 +358,20 @@ btnAuto.addEventListener('click', ()=>{
   setStatus(true,'준비');
   await loadMarkets();
   refreshMerged();
+  // 화면에서만 숨김(기존 기능/저장 로직은 그대로 유지)
+if (!APP.SHOW_MACRO_PANEL) {
+  const m = document.getElementById('macroPanel');
+  if (m) m.classList.add('hidden');
+}
+
+// (선택) 키보드 단축키: Shift+M 으로 보이기/숨기기 토글
+document.addEventListener('keydown', (e)=>{
+  if (e.key.toLowerCase()==='m' && e.shiftKey) {
+    const m = document.getElementById('macroPanel');
+    if (m) m.classList.toggle('hidden');
+  }
+});
+
   // 기본 1초 루프
   setInterval(()=>{ refreshMerged(); }, APP.INTERVAL_MS);
 
