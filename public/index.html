@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -9,23 +8,78 @@
     body {
       font-family: Arial, sans-serif;
       text-align: center;
-      padding: 50px;
       background-color: #0f172a;
       color: #e2e8f0;
+      padding: 80px;
     }
     h1 {
-      font-size: 2.2rem;
+      font-size: 2.5rem;
       color: #38bdf8;
     }
     p {
-      font-size: 1rem;
+      font-size: 1.2rem;
       color: #94a3b8;
+      margin-bottom: 40px;
+    }
+    .search-box {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 10px;
+      margin-top: 40px;
+    }
+    input[type="text"] {
+      width: 420px;
+      height: 55px;
+      border-radius: 12px;
+      border: 2px solid #38bdf8;
+      background: #1e293b;
+      color: #e2e8f0;
+      font-size: 1.2rem;
+      padding-left: 20px;
+      outline: none;
+    }
+    input[type="text"]::placeholder {
+      color: #64748b;
+    }
+    button {
+      height: 55px;
+      width: 120px;
+      background-color: #38bdf8;
+      color: #0f172a;
+      border: none;
+      border-radius: 12px;
+      font-size: 1.1rem;
+      font-weight: bold;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    button:hover {
+      background-color: #0ea5e9;
     }
   </style>
 </head>
 <body>
   <h1>사토시의지갑 (Satoshi Wallet)</h1>
-  <p>업비트 & 빗썸 실시간 시세 연동<br/>AI 매수·매도 타점 자동 표시 시스템</p>
-  <p>현재 서버 연결 테스트 중...</p>
+  <p>업비트 & 빗썸 실시간 시세 연동 / 매수·매도 타점 자동 표시 시스템</p>
+
+  <div class="search-box">
+    <input type="text" id="coinSearch" placeholder="코인명을 입력하세요 (예: 비트코인, 이더리움)" />
+    <button onclick="searchCoin()">검색</button>
+  </div>
+
+  <script>
+    function searchCoin() {
+      const keyword = document.getElementById("coinSearch").value.trim();
+      if (keyword === "") {
+        alert("검색어를 입력하세요!");
+        return;
+      }
+      console.log(`🔍 검색된 코인: ${keyword}`);
+      alert(`'${keyword}' 검색 중... (추후 자동 시세연동 예정)`);
+    }
+  </script>
+
+  <p style="margin-top: 60px;">현재 서버 연결 테스트 중...</p>
 </body>
 </html>
