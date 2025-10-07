@@ -5,7 +5,7 @@ async function httpJSON(url, tries = 2) {
   for (let i = 0; i < tries; i++) {
     try {
       const r = await fetch(url, { headers: { "Accept": "application/json" } });
-      if (r.status === 429) { // rate limit
+      if (r.status === 429) {
         await new Promise(r => setTimeout(r, 250 + Math.random() * 300));
         continue;
       }
@@ -45,7 +45,6 @@ module.exports = async (req, res) => {
     }
 
     if (fn === "tickersKRW") {
-      // KRW 마켓 전체 현재가를 100개 단위로 분할 조회
       const mk = await httpJSON("https://api.upbit.com/v1/market/all?isDetails=true");
       const krw = (mk || []).filter(x => (x.market || "").startsWith("KRW-")).map(x => x.market);
       let out = [];
