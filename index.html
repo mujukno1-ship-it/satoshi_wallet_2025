@@ -120,7 +120,7 @@
 
   <!-- 상승 TOP -->
   <div class="panel">
-    <div class="section-title"><span class="dot"></span><b>상승 TOP (업비트 · 빗썸 · 통합)</b> <small id="refreshNote" class="muted" style="margin-left:8px">1초 갱신</small></div>
+    <div class="section-title"><span class="dot"></span><b>상승 TOP (업비트 · 빗썸 · 통합)</b> <small class="muted" style="margin-left:8px">1초 갱신</small></div>
     <div class="row cols-2">
       <div>
         <b>업비트</b>
@@ -167,7 +167,8 @@ const APP = {
   INTERVAL_MS: 1000,
   UPBIT_API_BASE: (location.origin + "/api/upbit"),
   USE_PROXY: true,
-  ENABLE_AI_CHIPS: true
+  ENABLE_AI_CHIPS: true,
+  TOP_N: 10
 };
 const upbit = (fn, q="") => APP.USE_PROXY
   ? `${APP.UPBIT_API_BASE}?fn=${fn}${q}`
@@ -184,6 +185,7 @@ const pfmt = n => isNaN(n) ? '-' : ((n>0?'+':'') + n.toFixed(2) + '%');
 const save = (k,v)=> localStorage.setItem(k,JSON.stringify(v));
 const load = (k,d)=> { try{ let v=JSON.parse(localStorage.getItem(k)); return v??d; } catch{ return d; } };
 const toNum = x => { const n=parseFloat(String(x||'').replace(/[^0-9.\-]/g,'')); return isNaN(n)?null:n; };
+const raf = (fn)=> requestAnimationFrame(fn);
 
 /* ========== 상태/버튼 ========== */
 const stsApi=$('sts-api'), stsUpdated=$('sts-updated');
@@ -219,14 +221,15 @@ async function loadMarkets(){
 }
 const searchInput=$('searchInput'), chips=$('searchChips');
 function setChips(items){
-  chips.innerHTML='';
+  const frag=document.createDocumentFragment();
   items.slice(0,5).forEach(x=>{
     const el=document.createElement('span');
     el.className='chip';
     el.textContent = x.korean_name + ' (' + x.market.replace('KRW-','') + ')';
     el.onclick=()=> analyze(x.market);
-    chips.appendChild(el);
+    frag.appendChild(el);
   });
+  chips.replaceChildren(frag);
 }
 searchInput.addEventListener('input', e=>{
   const q=e.target.value.trim().toLowerCase();
@@ -286,37 +289,40 @@ function fullsetTargets(candles){
 
 /* ========== 분석(검색 시 즉시) ========== */
 async function analyze(market){
-  sigchips.textContent='불러오는 중…';
   try{
     const r=await fetch(upbit('candles',`&minutes=1&market=${encodeURIComponent(market)}&count=200`),{cache:'no-store'});
     if(!r.ok) throw new Error('HTTP '+r.status);
     const jr=await r.json(); const rows=Array.isArray(jr)?jr:(jr.data||[]);
     const candles = rows.map(x=>({t:new Date(x.candle_date_time_kst||x.timestamp), c:x.trade_price, h:x.high_price, l:x.low_price, v:x.candle_acc_trade_volume})).reverse();
-    if(!candles.length) throw new Error('빈 응답');
+    if(!candles.length) return;
 
     const res=fullsetTargets(candles);
-    paintAiChips({phase:res.phase, spike:res.spike, risk:res.risk, acc:res.acc, base:res.price});
+    raf(()=>{
+      paintAiChips({phase:res.phase, spike:res.spike, risk:res.risk, acc:res.acc, base:res.price});
+      // 칩 (불필요한 깜빡임 방지: replaceChildren)
+      const frag=document.createDocumentFragment();
+      const mk=(t,cls)=>{ const s=document.createElement('span'); s.className='chip '+(cls||''); s.textContent=t; return s; };
+      frag.appendChild(mk(`매수1: ₩${fmt(res.buy1)} · 매수2: ₩${fmt(res.buy2)}`,'ok'));
+      frag.appendChild(mk(`매도1: ₩${fmt(res.sell1)} · 매도2: ₩${fmt(res.sell2)}`,'warn'));
+      frag.appendChild(mk(`손절: ₩${fmt(res.stop)}`,'danger'));
+      sigchips.replaceChildren(frag);
 
-    sigchips.innerHTML='';
-    chip(sigchips, `매수1: ₩${fmt(res.buy1)} · 매수2: ₩${fmt(res.buy2)}`,'ok');
-    chip(sigchips, `매도1: ₩${fmt(res.sell1)} · 매도2: ₩${fmt(res.sell2)}`,'warn');
-    chip(sigchips, `손절: ₩${fmt(res.stop)}`,'danger');
-
-    const tb=document.querySelector('#signalTable tbody');
-    tb.innerHTML=`<tr>
-      <td>1분봉</td>
-      <td>${res.phase}</td>
-      <td>${res.risk===1?'낮음':res.risk===2?'보통':'높음'}</td>
-      <td>${res.acc.toFixed(1)}%</td>
-      <td class="right mono">${fmt(res.buy1)}</td>
-      <td class="right mono">${fmt(res.buy2)}</td>
-      <td class="right mono">${fmt(res.sell1)}</td>
-      <td class="right mono">${fmt(res.sell2)}</td>
-      <td class="right mono">${fmt(res.stop)}</td>
-    </tr>`;
-
-    setStatus(true,'정상'); setUpdated();
-  }catch(e){ console.error(e); sigchips.textContent='분석 실패(네트워크/CORS)'; setStatus(false,'오류'); }
+      // 표
+      const tb=document.querySelector('#signalTable tbody');
+      tb.innerHTML=`<tr>
+        <td>1분봉</td>
+        <td>${res.phase}</td>
+        <td>${res.risk===1?'낮음':res.risk===2?'보통':'높음'}</td>
+        <td>${res.acc.toFixed(1)}%</td>
+        <td class="right mono">${fmt(res.buy1)}</td>
+        <td class="right mono">${fmt(res.buy2)}</td>
+        <td class="right mono">${fmt(res.sell1)}</td>
+        <td class="right mono">${fmt(res.sell2)}</td>
+        <td class="right mono">${fmt(res.stop)}</td>
+      </tr>`;
+      setStatus(true,'정상'); setUpdated();
+    });
+  }catch(e){ /* 조용히 실패 처리 → 깜빡임 금지 */ }
 }
 
 /* ========== 매크로 저장/점수 ========== */
@@ -358,30 +364,44 @@ function keepScroll(fn){ const y=pageYOffset||document.documentElement.scrollTop
 /* ========== 상승 TOP(업비트/빗썸) ========== */
 async function fetchUpbitTop(){
   try{
-    const r=await fetch(`${APP.UPBIT_API_BASE}?fn=top&n=15`,{cache:'no-store'});
+    // 서버리스 프록시에서 상위 N개만 계산해주면 베스트. 없으면 클라이언트에서 slice.
+    const r=await fetch(`${APP.UPBIT_API_BASE}?fn=top&n=${APP.TOP_N}`,{cache:'no-store'});
+    if(!r.ok) throw 0;
     const j=await r.json();
-    const t=(j.data||[]).map(x=>({name:(x.market||'KRW-?').replace('KRW-',''),sym:(x.market||'KRW-?').replace('KRW-',''),chg:(x.signed_change_rate||0)*100,vol:(x.acc_trade_price_24h||0)}));
-    stableRenderTable('upbitTop', t.map(v=>({name:v.name,sym:v.sym,chg:v.chg,vol:v.vol})), 'sym');
+    const t=(j.data||[]).slice(0,APP.TOP_N).map(x=>({
+      name:(x.market||'KRW-?').replace('KRW-',''),
+      sym:(x.market||'KRW-?').replace('KRW-',''),
+      chg:(x.signed_change_rate||0)*100,
+      vol:(x.acc_trade_price_24h||0)
+    }));
+    raf(()=>stableRenderTable('upbitTop', t.map(v=>({name:v.name,sym:v.sym,chg:v.chg,vol:v.vol})), 'sym'));
     return t.map(v=>({ex:'업비트',...v}));
-  }catch(e){ document.querySelector('#upbitTop tbody').innerHTML=`<tr><td colspan="4" class="muted">업비트 요청 실패(프록시 확인)</td></tr>`; return []; }
+  }catch(e){
+    document.querySelector('#upbitTop tbody').innerHTML=`<tr><td colspan="4" class="muted">업비트 요청 실패(프록시 확인)</td></tr>`;
+    return [];
+  }
 }
 async function fetchBithumbTop(){
   try{
     const r=await fetch('https://api.bithumb.com/public/ticker/ALL_KRW',{cache:'no-store'});
     const j=await r.json(); if(j.status!=='0000') throw 0;
     const list=Object.entries(j.data).filter(([k,v])=>k!=='date'&&v&&v.fluctate_rate_24H)
-      .map(([k,v])=>({name:k,chg:parseFloat(v.fluctate_rate_24H),vol:parseFloat(v.acc_trade_value_24H||0)}));
-    stableRenderTable('bithumbTop', list.map(v=>({name:v.name,sym:v.name,chg:v.chg,vol:v.vol})), 'sym');
+      .map(([k,v])=>({name:k,chg:parseFloat(v.fluctate_rate_24H),vol:parseFloat(v.acc_trade_value_24H||0)}))
+      .sort((a,b)=>b.chg-a.chg).slice(0,APP.TOP_N);
+    raf(()=>stableRenderTable('bithumbTop', list.map(v=>({name:v.name,sym:v.name,chg:v.chg,vol:v.vol})), 'sym'));
     return list.map(v=>({ex:'빗썸',sym:v.name,name:v.name,chg:v.chg,vol:v.vol}));
-  }catch(e){ document.querySelector('#bithumbTop tbody').innerHTML=`<tr><td colspan="4" class="muted">빗썸 요청 실패</td></tr>`; return []; }
+  }catch(e){
+    document.querySelector('#bithumbTop tbody').innerHTML=`<tr><td colspan="4" class="muted">빗썸 요청 실패</td></tr>`;
+    return [];
+  }
 }
 async function refreshAll(){
-  $('refreshNote').textContent='갱신 중…';
+  // 문구 깜빡임 금지: 상태 텍스트는 변경하지 않음
   const u=await fetchUpbitTop(); const b=await fetchBithumbTop();
   keepScroll(()=>{
-    const merged=maybeSort([...u,...b]).slice(0,20);
-    stableRenderTable('mergedTop', merged.map(v=>({ex:v.ex,name:v.name,sym:(v.sym||v.name),chg:v.chg,vol:v.vol})), 'sym');
-    $('refreshNote').textContent='1초마다 자동 갱신'; setUpdated();
+    const merged=maybeSort([...u,...b]).slice(0,APP.TOP_N);
+    raf(()=>stableRenderTable('mergedTop', merged.map(v=>({ex:v.ex,name:v.name,sym:(v.sym||v.name),chg:v.chg,vol:v.vol})), 'sym'));
+    setUpdated();
   });
 }
 
@@ -412,7 +432,7 @@ btnAuto.addEventListener('click', ()=>{
   await loadMarkets();
   renderMarks();
   refreshAll();
-  // 기본 1초 루프
+  // 기본 1초 루프 (깜빡임 없는 diff 업데이트)
   setInterval(()=>{ refreshAll(); analyze('KRW-BTC'); }, APP.INTERVAL_MS);
 })();
 </script>
