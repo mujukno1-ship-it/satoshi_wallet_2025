@@ -1,0 +1,5 @@
+{
+  "apiBase": "https://satoshi-wallet-2025-vdlv.vercel.app",
+  "realtimeLimit": 8,
+  "refreshSec": 15
+}
