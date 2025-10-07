@@ -43,9 +43,9 @@
     .badge.err{color:#fecaca;border-color:#7f1d1d;background:#2f1313}
     td.right.mono{min-width:110px} td.pct{min-width:72px}
     #aiChips,#signalChips{min-height:34px}
+    /* 화면에서만 숨길 때 사용할 클래스 */
+    .hidden{display:none !important}
   </style>
- .hidden{display:none !important}
- 
 </head>
 <body>
 <div class="wrap">
@@ -103,7 +103,8 @@
     </thead><tbody></tbody></table>
   </div>
 
-  <div class="panel">
+  <!-- 거시경제 지표 (화면에서만 숨김) -->
+  <div id="macroPanel" class="panel">
     <div class="section-title"><span class="dot"></span><b>거시경제 지표 (자동 저장)</b></div>
     <div class="row" style="grid-template-columns:repeat(3,1fr)">
       <input id="dxy" placeholder="DXY" class="mono">
@@ -130,10 +131,9 @@ const APP = {
   TOP_N: 10,
   UPBIT_API_BASE: (location.origin + "/api/upbit"),
   USE_PROXY: true,
-  ENABLE_AI_CHIPS: true
-  
-  ,SHOW_MACRO_PANEL: false  // false면 화면에서만 숨김(기능/저장 로직 유지)
- }; 
+  ENABLE_AI_CHIPS: true,
+  SHOW_MACRO_PANEL: false   // false면 화면에서만 숨김(기능/저장 로직 유지)
+};
 const upbit = (fn, q="") => APP.USE_PROXY
   ? `${APP.UPBIT_API_BASE}?fn=${fn}${q}`
   : (fn==="markets"
@@ -158,7 +158,6 @@ function setUpdated(){ stsUpdated.textContent = '업데이트: ' + new Date().to
 
 /* ========== 칩 ========== */
 const aiChips=$('aiChips'), sigchips=$('signalChips');
-function clearNode(n){ n.replaceChildren(); }
 function chip(target, text, tone){ const el=document.createElement('span'); el.className='chip '+(tone||''); el.textContent=text; target.appendChild(el); }
 function paintAiChips({phase='중립', spike='—', risk=2, acc=92, base='-'}) {
   if(!APP.ENABLE_AI_CHIPS) return;
@@ -193,11 +192,11 @@ function setChips(items){
     el.onclick=()=> analyze(x.market);
     frag.appendChild(el);
   });
-  chips.replaceChildren(frag);
+  $('searchChips').replaceChildren(frag);
 }
 searchInput.addEventListener('input', e=>{
   const q=e.target.value.trim().toLowerCase();
-  if(q.length<1){ chips.replaceChildren(); return; }
+  if(q.length<1){ $('searchChips').replaceChildren(); return; }
   const items=upbitMarkets.filter(m=>
     m.korean_name.toLowerCase().includes(q) ||
     (m.english_name||'').toLowerCase().includes(q) ||
@@ -209,7 +208,7 @@ $('btnSearch').addEventListener('click', ()=>{
   const q=searchInput.value.trim(); const fb='KRW-BTC';
   if(!q){ analyze(fb); return; }
   const up=q.toUpperCase();
-  // 우선순위: 정확일치 > 심볼뒤 일치 > 한글/영문 포함
+  // 우선순위: 정확일치 > 심볼뒤 일치 > 한글/영문 일치 > 포함
   const m =
     upbitMarkets.find(x=>x.market===up) ||
     upbitMarkets.find(x=>x.market.endsWith('-'+up)) ||
@@ -348,23 +347,13 @@ function scoreMacro(vals,blink){
   if(blink){ rc.style.boxShadow='0 0 0 2px #38bdf8 inset'; setTimeout(()=>rc.style.boxShadow='none',700); }
 }
 
-/* ========== 초기화/루프 ========== */
-btnRefresh.addEventListener('click', ()=>{ refreshMerged(); });
-btnAuto.addEventListener('click', ()=>{
-  if(timer){ clearInterval(timer); timer=null; btnAuto.textContent='▶ 자동갱신 켜기(1초)'; }
-  else{ timer=setInterval(()=>{ refreshMerged(); }, APP.INTERVAL_MS); btnAuto.textContent='⏸ 자동갱신 끄기'; refreshMerged(); }
-});
-(async function(){
-  setStatus(true,'준비');
-  await loadMarkets();
-  refreshMerged();
-  // 화면에서만 숨김(기존 기능/저장 로직은 그대로 유지)
+/* ========== 표시/숨김(거시경제) + 초기화/루프 ========== */
+// 화면에서만 숨김(기존 기능/저장 로직은 유지)
 if (!APP.SHOW_MACRO_PANEL) {
   const m = document.getElementById('macroPanel');
   if (m) m.classList.add('hidden');
 }
-
-// (선택) 키보드 단축키: Shift+M 으로 보이기/숨기기 토글
+// (선택) Shift+M 으로 토글
 document.addEventListener('keydown', (e)=>{
   if (e.key.toLowerCase()==='m' && e.shiftKey) {
     const m = document.getElementById('macroPanel');
@@ -372,11 +361,22 @@ document.addEventListener('keydown', (e)=>{
   }
 });
 
+btnRefresh.addEventListener('click', ()=>{ refreshMerged(); });
+btnAuto.addEventListener('click', ()=>{
+  if(timer){ clearInterval(timer); timer=null; btnAuto.textContent='▶ 자동갱신 켜기(1초)'; }
+  else{ timer=setInterval(()=>{ refreshMerged(); }, APP.INTERVAL_MS); btnAuto.textContent='⏸ 자동갱신 끄기'; refreshMerged(); }
+});
+
+(async function(){
+  setStatus(true,'준비');
+  await loadMarkets();
+  refreshMerged();
   // 기본 1초 루프
   setInterval(()=>{ refreshMerged(); }, APP.INTERVAL_MS);
 
-  // 첫 검색 기본값: BTC 대신 입력값 기준 사용. 비어 있으면 KRW-BTC
-  $('btnSearch').click();
+  // 시작 시 검색 실행: 입력값이 있으면 그 코인, 아니면 BTC
+  const q=($('searchInput').value||'').trim();
+  if(q){ $('btnSearch').click(); } else { analyze('KRW-BTC'); }
 })();
 </script>
 </body>
