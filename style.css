@@ -1,6 +1,0 @@
-/* style.css — 기본 스타일 (선택) */
-:root {
-  --bg: #ffffff;
-}
-body { background: var(--bg); }
-.hidden{display:none !important}
