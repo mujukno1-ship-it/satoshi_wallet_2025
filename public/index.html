@@ -12,78 +12,90 @@
       color: #e2e8f0;
       padding: 80px;
     }
-    h1 {
-      font-size: 2.5rem;
-      color: #38bdf8;
-    }
-    p {
-      font-size: 1.2rem;
-      color: #94a3b8;
-      margin-bottom: 40px;
-    }
+    h1 { font-size: 2.5rem; color: #38bdf8; }
+    p { font-size: 1.2rem; color: #94a3b8; margin-bottom: 40px; }
     .search-box {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      gap: 10px;
-      margin-top: 40px;
+      display: flex; justify-content: center; align-items: center;
+      gap: 10px; margin-top: 40px;
     }
     button {
-      height: 55px;
-      width: 120px;
-      background-color: #38bdf8;
-      color: #0f172a;
-      border: none;
-      border-radius: 12px;
-      font-size: 1.1rem;
-      font-weight: bold;
-      cursor: pointer;
-      transition: 0.2s;
-      text-align: center;
+      height: 55px; width: 120px;
+      background-color: #38bdf8; color: #0f172a;
+      border: none; border-radius: 12px; font-size: 1.1rem;
+      font-weight: bold; cursor: pointer; transition: 0.2s;
     }
-    button:hover {
-      background-color: #0ea5e9;
-    }
+    button:hover { background-color: #0ea5e9; }
     input[type="text"] {
-      width: 420px;
-      height: 55px;
-      border-radius: 12px;
-      border: 2px solid #38bdf8;
-      background: #1e293b;
-      color: #e2e8f0;
-      font-size: 1.2rem;
-      padding-left: 20px;
-      outline: none;
-      text-align: left;
+      width: 420px; height: 55px; border-radius: 12px;
+      border: 2px solid #38bdf8; background: #1e293b;
+      color: #e2e8f0; font-size: 1.2rem; padding-left: 20px;
+      outline: none; text-align: left;
     }
-    input[type="text"]::placeholder {
-      color: #64748b;
-      text-align: left;
+    input[type="text"]::placeholder { color: #64748b; text-align: left; }
+
+    .result-box {
+      background: #111827; border: 1px solid #1e293b;
+      border-radius: 14px; margin-top: 40px; padding: 20px;
+      box-shadow: 0 6px 16px rgba(0,0,0,0.4);
+      width: 600px; max-width: 90%; margin-left: auto; margin-right: auto;
     }
+    .result-row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; text-align: left; font-size: 1rem; }
+    .result-row span { color: #94a3b8; }
+    .up { color: #22c55e; font-weight: bold; }
+    .down { color: #ef4444; font-weight: bold; }
+    .warn { color: #facc15; font-weight: bold; }
+    .quote { margin-top: 16px; font-style: italic; color: #a5b4fc; }
   </style>
 </head>
 <body>
   <h1>사토시의지갑 (Satoshi Wallet)</h1>
   <p>업비트 & 빗썸 실시간 시세 연동 / 매수·매도 타점 자동 표시 시스템</p>
 
-  <!-- ✅ 순서 변경: 버튼 → 입력창 -->
   <div class="search-box">
     <button onclick="searchCoin()">검색</button>
     <input type="text" id="coinSearch" placeholder="코인명을 입력하세요 (예: 비트코인, 이더리움)" />
   </div>
 
+  <div id="result" class="result-box" style="display:none;"></div>
+
   <script>
     function searchCoin() {
       const keyword = document.getElementById("coinSearch").value.trim();
-      if (keyword === "") {
-        alert("검색어를 입력하세요!");
-        return;
-      }
-      console.log(`검색된 코인: ${keyword}`);
-      alert(`'${keyword}' 검색 중... (시세 연동 준비 중)`);
+      const resultBox = document.getElementById("result");
+      if (keyword === "") { alert("검색어를 입력하세요!"); return; }
+
+      // 임시 랜덤 테스트 데이터 (API 연결 전)
+      const price = (Math.random() * 100000 + 1000).toFixed(0);
+      const buy = (price * 0.98).toFixed(0);
+      const sell = (price * 1.02).toFixed(0);
+      const stop = (price * 0.95).toFixed(0);
+      const rise = (Math.random() * 5).toFixed(2);
+      const fall = (Math.random() * 5).toFixed(2);
+      const risk = Math.ceil(Math.random() * 5);
+      const msgList = [
+        "세력의 그림자가 움직입니다.",
+        "시장 심리: 탐욕과 공포의 경계.",
+        "추세는 곧 방향입니다. 기다리면 기회가 옵니다.",
+        "리스크는 낮지만 방심은 금물!",
+        "매수세와 매도세의 전쟁터입니다."
+      ];
+      const quote = msgList[Math.floor(Math.random() * msgList.length)];
+
+      resultBox.style.display = "block";
+      resultBox.innerHTML = `
+        <h3 style="color:#38bdf8; margin-bottom:10px;">🔎 ${keyword} 분석 결과</h3>
+        <div class="result-row">
+          <span>💰 현재가:</span> <b>${Number(price).toLocaleString()} 원</b>
+          <span>🟢 매수:</span> <b class="up">${Number(buy).toLocaleString()} 원</b>
+          <span>🔴 매도:</span> <b class="down">${Number(sell).toLocaleString()} 원</b>
+          <span>⚠️ 손절:</span> <b class="warn">${Number(stop).toLocaleString()} 원</b>
+          <span>📈 상승율:</span> <b class="up">+${rise}%</b>
+          <span>📉 하락율:</span> <b class="down">-${fall}%</b>
+          <span>💣 위험도:</span> <b>${risk} / 5</b>
+        </div>
+        <div class="quote">💬 쩔어 한마디: ${quote}</div>
+      `;
     }
   </script>
-
-  <p style="margin-top: 60px;">현재 서버 연결 테스트 중...</p>
 </body>
 </html>
