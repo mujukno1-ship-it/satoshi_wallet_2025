@@ -31,6 +31,7 @@ input[type="text"]{width:420px;height:48px;border-radius:12px;border:2px solid v
 .mono{font-variant-numeric:tabular-nums}
 .col2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 .col2 .panel{margin:0}
+.name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 </style>
 </head>
 <body>
@@ -84,7 +85,7 @@ input[type="text"]{width:420px;height:48px;border-radius:12px;border:2px solid v
   </div>
 
 <script>
-/* ===== 공통 유틸 ===== */
+/* ===== 유틸 & 옵션 ===== */
 const $=id=>document.getElementById(id);
 const fmt=n=>(n===null||n===undefined||isNaN(n))?'-':Number(n).toLocaleString('ko-KR');
 function krwTick(p){ if(p>=2e6)return 1000; if(p>=1e6)return 500; if(p>=5e5)return 100; if(p>=1e5)return 50; if(p>=1e4)return 10; if(p>=1e3)return 1; if(p>=100)return .1; if(p>=10)return .01; if(p>=1)return .001; return .0001; }
@@ -98,8 +99,11 @@ function hhll(a,n){const x=a.slice(-n);return{hh:Math.max(...x),ll:Math.min(...x
 function stdev(arr){const n=arr.length;if(!n)return 0;const m=arr.reduce((a,b)=>a+b,0)/n;const v=arr.reduce((a,b)=>a+(b-m)*(b-m),0)/n;return Math.sqrt(v)}
 function zComment(uptrend,atrPct){ if(atrPct>4.5) return "변동성 과열, 손절 우선. 추격매수 금지."; if(uptrend && atrPct<2) return "완만한 상승 추세. 분할매수 구간 탐색."; if(!uptrend && atrPct>3) return "하락 변동성 확대. 반등 전까지 관망 권장."; return "추세 확인 후 대응. 과도한 레버리지는 금물."; }
 
+// ‘업비트/빗썸’ 접두사 표시 여부 (false = 숨김)
+const SHOW_EX_PREFIX = false;
+
 /* ===== 상태/토글 ===== */
-let EXCHANGE='UPBIT'; // 검색용 토글
+let EXCHANGE='UPBIT';
 $('exUpbit').onclick=()=>{EXCHANGE='UPBIT';$('exUpbit').classList.add('on');$('exBithumb').classList.remove('on');};
 $('exBithumb').onclick=()=>{EXCHANGE='BITHUMB';$('exBithumb').classList.add('on');$('exUpbit').classList.remove('on');};
 
@@ -108,23 +112,24 @@ let UB_MARKETS=[], UB_KOR=new Map(), UB_ENG=new Map(), UB_SYM=new Map();
 async function loadUbMarkets(){
   const r=await fetch('/api/upbit?fn=markets',{cache:'no-store'}); const j=await r.json();
   const list=Array.isArray(j?.data)?j.data:[]; UB_MARKETS=list.filter(m=>(m.market||'').startsWith('KRW-'));
-  UB_MARKETS.forEach(m=>{const sym=(m.market||'KRW-?').split('-')[1];
+  UB_MARKETS.forEach(m=>{
+    const sym=(m.market||'KRW-?').split('-')[1];
     if(sym) UB_SYM.set(sym.toUpperCase(),m.market);
-    if(m.korean_name) UB_KOR.set(sym.toUpperCase(), m.korean_name); // 심볼→한글
-    if(m.korean_name) UB_KOR.set(m.korean_name.trim().toLowerCase(),m.market);
+    if(m.korean_name) { UB_KOR.set(sym.toUpperCase(), m.korean_name); UB_KOR.set(m.korean_name.trim().toLowerCase(), m.market); }
     if(m.english_name) UB_ENG.set(m.english_name.trim().toLowerCase(),m.market);
   });
 }
 
-/* ===== 빗썸 한글명 간단 맵(없으면 심볼 표기) ===== */
+/* ===== 빗썸 한글명 기본 맵 ===== */
 const BH_KOR = {
   BTC:'비트코인', ETH:'이더리움', XRP:'리플', ADA:'에이다', SOL:'솔라나', DOGE:'도지코인', SHIB:'시바이누',
   BCH:'비트코인캐시', ETC:'이더리움클래식', TRX:'트론', DOT:'폴카닷', MATIC:'폴리곤', LTC:'라이트코인',
   APT:'앱토스', ARB:'아비트럼', SUI:'수이', PEPE:'페페', ASTR:'아스타', HUNT:'헌트', STORJ:'스토리지',
-  MOVE:'무브', ANIME:'애니메', SONIC:'소닉', ONG:'온톨로지가스', IP:'태스크온(예시)', T:'쓰레스홀드(예시)'
+  MOVE:'무브', ANIME:'애니메', SONIC:'소닉', ONG:'온톨로지가스', IP:'태스크온', T:'쓰레스홀드',
+  STAT:'스탯', OP:'옵티미즘', OPEN:'오픈캠퍼스', AVAX:'아발란체', EPT:'엡트', NCT:'NCT', WLD:'월드코인'
 };
 
-/* ===== 검색 ===== */
+/* ===== 데이터 로더 ===== */
 async function fetchUbCandles(market){
   const r=await fetch(`/api/upbit?fn=candles&minutes=1&market=${encodeURIComponent(market)}&count=240`,{cache:'no-store'}); const j=await r.json();
   const rows=Array.isArray(j?.data)?j.data:[]; return rows.map(x=>({t:new Date(x.candle_date_time_kst||x.timestamp),c:x.trade_price,h:x.high_price,l:x.low_price})).reverse();
@@ -139,6 +144,8 @@ async function fetchBhCandles(symbol){
 async function fetchBhTicker(symbol){
   const r=await fetch(`/api/bithumb?fn=ticker&symbol=${encodeURIComponent(symbol)}`,{cache:'no-store'}); const j=await r.json(); return j?.data||null;
 }
+
+/* ===== 검색 ===== */
 function resolveUbMarket(q){
   if(!q) return 'KRW-BTC';
   const raw=q.trim(); const up=raw.toUpperCase(); const low=raw.toLowerCase();
@@ -173,16 +180,16 @@ function calcTargets(candles){
 async function onSearch(){
   if(!UB_MARKETS.length) await loadUbMarkets();
   const q=$('coinSearch').value.trim();
-  let candles=[], marketLabel='', symKor='';
+  let candles=[], marketLabel='', symKor='', sym='';
 
   if(EXCHANGE==='UPBIT'){
     const market=resolveUbMarket(q);
     candles=await fetchUbCandles(market);
-    const sym=(market||'KRW-?').split('-')[1];
+    sym=(market||'KRW-?').split('-')[1];
     symKor = UB_KOR.get(sym.toUpperCase()) || sym;
     marketLabel=`업비트 · ${symKor} (${sym})`;
   }else{
-    const sym=resolveBhSymbol(q);
+    sym=resolveBhSymbol(q);
     candles=await fetchBhCandles(sym);
     symKor = BH_KOR[sym] || sym;
     marketLabel=`빗썸 · ${symKor} (${sym})`;
@@ -203,8 +210,9 @@ async function onSearch(){
   $('result').style.display='block';
 }
 
-/* ===== 실시간 급등: 업비트/빗썸 각각 (최근 15초 Δ 상위8) ===== */
+/* ===== 실시간 급등(15초 Δ 상위8): 업비트/빗썸 분리 ===== */
 let ubSnap=new Map(), bhSnap=new Map();
+
 async function runSpikeUpbit(){
   try{
     const r=await fetch('/api/upbit?fn=tickersKRW',{cache:'no-store'}); const j=await r.json();
@@ -219,7 +227,8 @@ async function runSpikeUpbit(){
     top.forEach(row=>{
       const kor = UB_KOR.get(row.sym) || row.sym;
       const div=document.createElement('div'); div.className='chip';
-      const left=document.createElement('div'); left.textContent='업비트 '+kor;
+      const left=document.createElement('div'); left.className='name';
+      left.textContent = (SHOW_EX_PREFIX ? '업비트 ' : '') + kor;
       const right=document.createElement('div'); right.className='mono '+(row.chg>=0?'up':'down'); right.textContent=(row.chg>=0?'+':'')+row.chg.toFixed(2)+'%';
       div.appendChild(left); div.appendChild(right); frag.appendChild(div);
     });
@@ -227,6 +236,7 @@ async function runSpikeUpbit(){
     $('spikeTsUb').textContent=new Date().toLocaleTimeString('ko-KR');
   }catch{}
 }
+
 async function runSpikeBithumb(){
   try{
     const r=await fetch('/api/bithumb?fn=all',{cache:'no-store'}); const j=await r.json();
@@ -241,7 +251,8 @@ async function runSpikeBithumb(){
     top.forEach(row=>{
       const kor = BH_KOR[row.sym] || row.sym;
       const div=document.createElement('div'); div.className='chip';
-      const left=document.createElement('div'); left.textContent='빗썸 '+kor;
+      const left=document.createElement('div'); left.className='name';
+      left.textContent = (SHOW_EX_PREFIX ? '빗썸 ' : '') + kor;
       const right=document.createElement('div'); right.className='mono '+(row.chg>=0?'up':'down'); right.textContent=(row.chg>=0?'+':'')+row.chg.toFixed(2)+'%';
       div.appendChild(left); div.appendChild(right); frag.appendChild(div);
     });
