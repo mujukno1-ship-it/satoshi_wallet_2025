@@ -147,8 +147,9 @@ const APP = {
   STRATEGY: 'LEGACY',            // 타점은 기존 산식 고정
   ENABLE_AI_CHIPS: true,         // 시장/급등락/위험/정확도 칩
   // 업비트 프록시(본인 Vercel로 바꿔도 됨)
-  UPBIT_API_BASE: "https://satoshi-wallet-2025.vercel.app/api/upbit",
-  USE_PROXY: true
+UPBIT_API_BASE: (location.origin + "/api/upbit"),
+USE_PROXY: true
+ 
 };
 // 업비트 엔드포인트 헬퍼
 const upbit = (fn, q="") => APP.USE_PROXY
