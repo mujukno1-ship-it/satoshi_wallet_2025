@@ -18,7 +18,6 @@ h1{font-size:22px;margin:0 0 8px}.sub{color:#93c5fd;font-size:13px;opacity:.85;m
 .badge{font-size:12px;padding:5px 8px;border-radius:8px;border:1px solid #1e293b;background:#0b1b33;min-height:28px}
 .badge.err{color:#fecaca;border-color:#7f1d1d;background:#2f1313}
 .btn{padding:9px 12px;border-radius:10px;border:1px solid #1e293b;background:#0b1b33;color:#dbeafe;cursor:pointer}
-.btn.sec{background:#111827;color:#cbd5e1}
 .searchbar{position:relative}.searchbar input{width:100%;padding:13px 14px;border-radius:12px;border:1px solid #1e293b;background:#0b1327;color:#e5e7eb}
 .searchbar button{position:absolute;right:6px;top:6px;height:34px;padding:0 12px;border-radius:9px;border:1px solid #1e293b;background:#0b1b33;color:#dbeafe;cursor:pointer}
 .hint{display:flex;gap:8px;flex-wrap:wrap}
@@ -31,9 +30,6 @@ th,td{padding:10px;border-bottom:1px dashed #1e293b;font-size:14px;white-space:n
 th{color:#93c5fd;text-align:left} tr:hover{background:#0d1b31}
 .up{color:#10b981}.down{color:#ef4444}.mono{font-variant-numeric:tabular-nums}
 .right{text-align:right}.muted{color:#94a3b8}
-.settings{display:none; gap:10px; flex-wrap:wrap; margin-top:10px}
-.settings input{width:110px;padding:6px 8px;border-radius:8px;border:1px solid #1e293b;background:#0b1327;color:#e5e7eb}
-.small{font-size:12px;color:#9ca3af}
 </style>
 </head>
 <body>
@@ -48,21 +44,7 @@ th{color:#93c5fd;text-align:left} tr:hover{background:#0d1b31}
       <span id="sts-api" class="badge">API: 준비</span>
       <span id="sts-updated" class="badge">업데이트: -</span>
       <button id="btn-refresh" class="btn">🔄 새로고침</button>
-      <button id="btn-auto" class="btn sec">▶ 자동갱신 켜기(1초)</button>
-      <button id="btn-settings" class="btn">⚙️ 세팅</button>
-    </div>
-
-    <!-- 예측 파라미터 세팅 패널 -->
-    <div id="settingsPanel" class="settings">
-      <div><div class="small">ATR 가중(0~2)</div><input id="cfg_atrW" type="number" step="0.1" /></div>
-      <div><div class="small">볼린저 가중(0~2)</div><input id="cfg_bbwW" type="number" step="0.1" /></div>
-      <div><div class="small">추세 가중(0~2)</div><input id="cfg_trendW" type="number" step="0.1" /></div>
-      <div><div class="small">RSI 상승 보정</div><input id="cfg_rsiBull" type="number" step="0.1" /></div>
-      <div><div class="small">RSI 하락 보정</div><input id="cfg_rsiBear" type="number" step="0.1" /></div>
-      <div><div class="small">최소/상한(상승%)</div><input id="cfg_capUp" type="number" step="0.1" /></div>
-      <div><div class="small">최소/상한(하락%)</div><input id="cfg_capDn" type="number" step="0.1" /></div>
-      <div><div class="small">스파이크 임계(%)</div><input id="cfg_spikeTh" type="number" step="0.1" /></div>
-      <button id="cfg_save" class="btn">💾 저장</button>
+      <button id="btn-auto" class="btn">▶ 자동갱신 켜기(1초)</button>
     </div>
   </div>
 
@@ -122,42 +104,27 @@ th{color:#93c5fd;text-align:left} tr:hover{background:#0d1b31}
 </div>
 
 <script>
-/* ===== 설정 ===== */
+/* ====== 설정 로드 (config.json) ====== */
+let CONFIG = null;
+async function loadConfig(){
+  try{
+    const r = await fetch('config.json', {cache:'no-store'});
+    const j = await r.json();
+    CONFIG = j;
+    // APP 파라미터 일부 동기화
+    APP.INTERVAL_MS = Number(j.AUTO_REFRESH_MS||1000);
+    APP.TOP_N = Number(j.TOP_N||10);
+    REF_MARKET = String(j.REF_MARKET||'KRW-BTC');
+  }catch{
+    alert('설정 파일(config.json) 로드 실패. 기본값으로 진행합니다.');
+    CONFIG = { ATR_WEIGHT:0.8, BBW_WEIGHT:0.6, TREND_WEIGHT:0.9, RSI_BULL:1.0, RSI_BEAR:1.0, CAP_UP:7.5, CAP_DN:7.5, MIN_MOVE:0.4, SPIKE_TH:2.0 };
+  }
+}
+
 const APP={INTERVAL_MS:1000,TOP_N:10,UPBIT_API_BASE:(location.origin+"/api/upbit"),USE_PROXY:true};
-const CFG_KEY='predict_cfg_v2';
+let REF_MARKET='KRW-BTC';
 
-// 기본 예측 파라미터(원하면 여기 값만 바꿔도 OK)
-const CONFIG_DEFAULT={
-  ATR_WEIGHT:0.8,      // ATR% 기여도
-  BBW_WEIGHT:0.6,      // 볼린저 대역폭% 기여도
-  TREND_WEIGHT:0.9,    // 추세(MACD/EMA) 기여도
-  RSI_BULL:1.0,        // RSI 상승 보정(+)
-  RSI_BEAR:1.0,        // RSI 하락 보정(+)
-  CAP_UP:7.5,          // 상승% 상한
-  CAP_DN:7.5,          // 하락% 상한
-  MIN_MOVE:0.4,        // 최소 예측%
-  SPIKE_TH:2.0         // 실시간 급등 임계(%) 15초
-};
-let CONFIG=loadCfg();
-
-// 스파이크(실시간 급등) 창 설정
 const SPIKE_WINDOW_MS=15_000, SPIKE_KEEP_MS=20_000;
-
-function loadCfg(){
-  try{const v=JSON.parse(localStorage.getItem(CFG_KEY)); return {...CONFIG_DEFAULT, ...(v||{})};}catch{return {...CONFIG_DEFAULT};}
-}
-function saveCfg(){ localStorage.setItem(CFG_KEY, JSON.stringify(CONFIG)); }
-function bindSettings(){
-  const $=id=>document.getElementById(id);
-  $('#cfg_atrW').value=CONFIG.ATR_WEIGHT;
-  $('#cfg_bbwW').value=CONFIG.BBW_WEIGHT;
-  $('#cfg_trendW').value=CONFIG.TREND_WEIGHT;
-  $('#cfg_rsiBull').value=CONFIG.RSI_BULL;
-  $('#cfg_rsiBear').value=CONFIG.RSI_BEAR;
-  $('#cfg_capUp').value=CONFIG.CAP_UP;
-  $('#cfg_capDn').value=CONFIG.CAP_DN;
-  $('#cfg_spikeTh').value=CONFIG.SPIKE_TH;
-}
 
 /* ===== 유틸 ===== */
 const $=id=>document.getElementById(id);
@@ -205,7 +172,7 @@ searchInput.addEventListener('input',e=>{
 });
 searchInput.addEventListener('keydown',ev=>{if(ev.key==='Enter')$('btnSearch').click();});
 $('btnSearch').addEventListener('click',()=>{
-  const fb='KRW-BTC'; let qRaw=(searchInput.value||'').trim(); if(!qRaw){analyze(fb);return;}
+  const fb=REF_MARKET; let qRaw=(searchInput.value||'').trim(); if(!qRaw){analyze(fb);return;}
   const q=qRaw.replace(/\s+/g,' ').toLowerCase(); const up=qRaw.replace(/\s+/g,'').toUpperCase();
   const pick= upbitMarkets.find(m=>(m.market||'').toUpperCase()===up)
         || upbitMarkets.find(m=>(m.market||'').toUpperCase().endsWith('-'+up))
@@ -218,45 +185,35 @@ $('btnSearch').addEventListener('click',()=>{
   analyze(pick.market); setChips([pick]);
 });
 
-/* ===== 예측식(상승/하락 %) =====
-   - 기본폭 = ATR%*w1 + BBW%*w2
-   - 추세보정 = MACD 스코어 * TREND_WEIGHT (EMA20>EMA50 +)
-   - RSI 보정 = 구간별 가/감
-   - 최종 클램프: [MIN_MOVE, CAP_{UP/DN}]
-*/
+/* ===== 예측식 (CONFIG 사용) ===== */
 function predictMovePctAdvanced({closes, highs, lows}){
   const c=closes, h=highs, l=lows;
   const price=c.at(-1)||0; if(!price) return {up:CONFIG.MIN_MOVE, down:CONFIG.MIN_MOVE};
-  // ATR%
   const atrArr=ATR(h,l,c,14); const atr=atrArr.at(-1)||0; const atrPct=Math.max(0,(atr/price*100)||0);
-  // Bollinger bandwidth %
-  const ma20=EMA(c,20); const sd20=stdev(c.slice(-20)); const bbwPct = price? ((2*sd20)/price*100):0;
-  // Trend (MACD diff + EMA slope)
+  const sd20=stdev(c.slice(-20)); const bbwPct=price? ((2*sd20)/price*100):0;
   const ema12=EMA(c,12), ema26=EMA(c,26); const macd=(ema12.at(-1)||0)-(ema26.at(-1)||0);
   const macdPrev=(ema12.at(-2)||0)-(ema26.at(-2)||0);
-  const macdSlope=macd - macdPrev;
+  const macdSlope=macd-macdPrev;
   const ema20Arr=EMA(c,20), ema50Arr=EMA(c,50);
   const emaUp=(ema20Arr.at(-1)||0)>(ema50Arr.at(-1)||0)?1:-1;
-  const trendScore = (macd*0.6 + macdSlope*0.4) * emaUp; // 부호 유지
-  // base
-  let base = atrPct*CONFIG.ATR_WEIGHT + Math.max(0,bbwPct)*CONFIG.BBW_WEIGHT;
-  // trend bias: 0.2~1.2 범위
+  const trendScore=(macd*0.6+macdSlope*0.4)*emaUp;
+
+  let base= atrPct*CONFIG.ATR_WEIGHT + Math.max(0,bbwPct)*CONFIG.BBW_WEIGHT;
   const tb = Math.max(0.2, Math.min(1.2, 1 + trendScore*CONFIG.TREND_WEIGHT*0.5));
-  // RSI 보정
   const rsi=RSI(c,14).at(-1)||50;
+
   let up = base*tb, down = base*tb;
   if(rsi>=60) up+=CONFIG.RSI_BULL;
   if(rsi>=70) up+=CONFIG.RSI_BULL*0.8;
   if(rsi<=40) down+=CONFIG.RSI_BEAR;
   if(rsi<=30) down+=CONFIG.RSI_BEAR*0.8;
-  // 안전 클램프
-  up   = Math.max(CONFIG.MIN_MOVE, Math.min(CONFIG.CAP_UP,   up));
-  down = Math.max(CONFIG.MIN_MOVE, Math.min(CONFIG.CAP_DN,   down));
-  // 소숫점 2자리
+
+  up   = Math.max(CONFIG.MIN_MOVE, Math.min(CONFIG.CAP_UP, up));
+  down = Math.max(CONFIG.MIN_MOVE, Math.min(CONFIG.CAP_DN, down));
   return {up:+up.toFixed(2), down:+down.toFixed(2)};
 }
 
-/* ===== 타점 계산 ===== */
+/* ===== 타점 ===== */
 function fullsetTargets(candles){
   const c=candles.map(x=>x.c), h=candles.map(x=>x.h), l=candles.map(x=>x.l);
   const price=c.at(-1);
@@ -267,7 +224,7 @@ function fullsetTargets(candles){
   if(uptrend){ buy1=Math.min(ema20,f382); buy2=Math.min(f5,f618); sell1=Math.max(hh,ext127); sell2=Math.max(sell1*1.02,ext1618); stop=Math.min(buy1-(price*0.01), f618-(price*0.005)); }
   else      { buy1=Math.min(f5,f618); buy2=f618*0.985; sell1=Math.max(ema50,f382); sell2=Math.max(hh,sell1*1.03); stop=Math.min(buy1-(price*0.009), ll-(price*0.003)); }
   const pred=predictMovePctAdvanced({closes:c, highs:h, lows:l});
-  const phase = (ema20>ema50 && (RSI(c,14).at(-1)||50)>70) ? '불장' : ((ema20<ema50 && (RSI(c,14).at(-1)||50)<45) ? '하락장':'중립');
+  const phase=(ema20>ema50 && (RSI(c,14).at(-1)||50)>70)?'불장':((ema20<ema50 && (RSI(c,14).at(-1)||50)<45)?'하락장':'중립');
   return {price,buy1,buy2,sell1,sell2,stop,phase,predUp:pred.up,predDown:pred.down};
 }
 
@@ -402,35 +359,12 @@ $('btn-auto').addEventListener('click',()=>{
   else{timer=setInterval(()=>{refreshUpbitTop();refreshBithumbTop();refreshSpikes();},APP.INTERVAL_MS);
        $('btn-auto').textContent='⏸ 자동갱신 끄기'; refreshUpbitTop();refreshBithumbTop();refreshSpikes();}
 });
-$('btn-settings').addEventListener('click',()=>{
-  const p=$('settingsPanel'); p.style.display=(p.style.display==='flex'?'none':'flex');
-  if(p.style.display==='flex') bindSettings();
-});
-$('cfg_save').addEventListener('click',()=>{
-  const g=id=>parseFloat(document.getElementById(id).value);
-  CONFIG={
-    ATR_WEIGHT: g('cfg_atrW'),
-    BBW_WEIGHT: g('cfg_bbwW'),
-    TREND_WEIGHT: g('cfg_trendW'),
-    RSI_BULL: g('cfg_rsiBull'),
-    RSI_BEAR: g('cfg_rsiBear'),
-    CAP_UP: g('cfg_capUp'),
-    CAP_DN: g('cfg_capDn'),
-    MIN_MOVE: CONFIG.MIN_MOVE, // UI 단순화(필요시 입력칸 추가 가능)
-    SPIKE_TH: g('cfg_spikeTh')
-  };
-  // NaN 방지 + 기본값 병합
-  Object.keys(CONFIG_DEFAULT).forEach(k=>{
-    if(!isFinite(CONFIG[k])) CONFIG[k]=CONFIG_DEFAULT[k];
-  });
-  saveCfg(); alert('세팅 저장 완료');
-});
 
 (async function(){
-  bindSettings();
+  await loadConfig();          // ← config.json 먼저 로드
   await loadMarkets();
   refreshUpbitTop(); refreshBithumbTop(); refreshSpikes();
-  analyze('KRW-BTC');
+  analyze(REF_MARKET);
 })();
 </script>
 </body>
