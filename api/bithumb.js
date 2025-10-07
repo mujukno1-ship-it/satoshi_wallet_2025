@@ -1,4 +1,5 @@
-// /api/bithumb.js
+// /api/bithumb.js — Vercel Serverless
+
 async function httpJSON(url, tries = 2) {
   let lastErr;
   for (let i = 0; i < tries; i++) {
@@ -10,7 +11,7 @@ async function httpJSON(url, tries = 2) {
       return j;
     } catch (e) {
       lastErr = e;
-      await new Promise(r => setTimeout(r, 150 + Math.random()*200));
+      await new Promise(r => setTimeout(r, 150 + Math.random() * 200));
     }
   }
   throw lastErr || new Error("fetch failed");
