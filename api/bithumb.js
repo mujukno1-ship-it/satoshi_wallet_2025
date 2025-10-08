@@ -1,4 +1,14 @@
 // api/bithumb.js
+export default async function handler(req, res) {
+  // 캐시 완전 차단
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0, s-maxage=0');
+
+  try {
+    const resp = await fetch('https://api.bithumb.com/public/ticker/ALL_KRW', { cache: 'no-store' });
+    // 이하 동일 …
+
+// api/bithumb.js
 // 빗썸 상승률 TOP10 (KRW) — 한글명 매핑 + 퍼센트 필드(rate & ratePercent) 동시 제공
 
 export default async function handler(req, res) {
