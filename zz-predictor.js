@@ -68,6 +68,14 @@ function ZZ_mountPredictor(){
   if(target&&target.parentNode){ target.parentNode.insertBefore(panel,target.nextSibling); } else { document.body.prepend(panel); }
   // 데모 데이터(보이면 성공)
   window.ZZPredictor.update([
+  window.ZZPredictor.update([
+  { nameKR:'비트코인', symbol:'BTC/KRW', rsi:58, macdUp:true, volUp:1.9, obvSlope:0.6, atrBand:0.7, cvdUp:true },
+  { nameKR:'이더리움', symbol:'ETH/KRW', rsi:61, macdUp:true, volUp:1.5, obvSlope:0.8, atrBand:0.55, cvdUp:true },
+  { nameKR:'셀로',    symbol:'CELO/KRW', rsi:63, macdUp:true, volUp:2.3, obvSlope:0.5, atrBand:0.8, cvdUp:true },
+  { nameKR:'도지코인', symbol:'DOGE/KRW', rsi:57, macdUp:true, volUp:1.6, obvSlope:0.4, atrBand:0.6, cvdUp:false },
+  // ↑ 이렇게 원하는 코인 계속 추가
+]);
+ 
     {nameKR:'이더리움',symbol:'ETH/KRW',rsi:59,macdUp:true,volUp:1.7,obvSlope:0.9,atrBand:0.6,cvdUp:true},
     {nameKR:'셀로',symbol:'CELO/KRW',rsi:63,macdUp:true,volUp:2.3,obvSlope:0.5,atrBand:0.8,cvdUp:true},
     {nameKR:'에어고',symbol:'AERGO/KRW',rsi:55,macdUp:true,volUp:1.6,obvSlope:0.4,atrBand:0.5,cvdUp:false}
