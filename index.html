@@ -1,48 +1,135 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>사토시의지갑 ⚡ 실시간 코인가이드</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>사토시의지갑 (클린 스타트)</title>
   <style>
-    body { background: #000; color: #0f0; font-family: 'Courier New', monospace; text-align: center; padding: 30px; }
-    h1 { color: #00ff90; }
-    input { padding: 10px; font-size: 16px; width: 200px; }
-    button { padding: 10px; font-size: 16px; cursor: pointer; }
-    .result { margin-top: 20px; font-size: 18px; }
+    body{background:#0d1117;color:#e6edf3;font-family:system-ui,AppleSDGothic,Arial,sans-serif;margin:0}
+    .wrap{max-width:1100px;margin:40px auto;padding:24px;background:#161b22;border-radius:16px}
+    h1{margin:0 0 20px;color:#58a6ff;text-align:center}
+    .toolbar{display:flex;gap:8px;justify-content:center;margin:10px 0 20px}
+    input{flex:1;min-width:320px;padding:10px;border-radius:8px;border:none}
+    button{padding:10px 14px;border:none;border-radius:8px;background:#238636;color:#fff;cursor:pointer}
+    button.alt{background:#444}
+    table{width:100%;border-collapse:collapse;margin-top:10px}
+    th,td{border:1px solid #30363d;padding:8px;text-align:center}
+    th{background:#1f242d}
+    .cols{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}
+    ul{margin:8px 0;padding-left:18px}
+    .up{color:#2ecc71}.down{color:#e74c3c}
   </style>
 </head>
 <body>
-  <h1>💎 사토시의지갑 실시간 시세</h1>
-  <input id="coinInput" placeholder="코인명 (예: BTC, ETH, SHIB)" />
-  <button onclick="getPrice()">검색</button>
-  <div class="result" id="resultBox">결과가 여기에 표시됩니다</div>
+<div class="wrap">
+  <h1>사토시의지갑 (클린 스타트)</h1>
 
-  <script>
-    async function getPrice() {
-      const coin = document.getElementById('coinInput').value.toUpperCase();
-      if (!coin) return alert("코인명을 입력해주세요!");
+  <div class="toolbar">
+    <button id="tab-upbit">업비트</button>
+    <button id="tab-bithumb" class="alt">빗썸</button>
+  </div>
 
-      const upbitMarket = `KRW-${coin}`;
-      document.getElementById('resultBox').innerHTML = "⏳ 불러오는 중...";
+  <div class="toolbar">
+    <input id="search-input" placeholder="코인명/심볼 (예: BTC 또는 KRW-BTC)" />
+    <button id="search-btn">검색</button>
+  </div>
 
-      try {
-        const [upbit, bithumb] = await Promise.all([
-          fetch(`/api/upbit?market=${upbitMarket}`).then(r => r.json()),
-          fetch(`/api/bithumb?coin=${coin}`).then(r => r.json())
-        ]);
+  <table id="result-table">
+    <thead>
+      <tr><th>기준가</th><th>시장상태</th><th>위험도</th><th>상승예상</th><th>하락예상</th><th>매수1</th><th>매수2</th><th>매도1</th><th>매도2</th><th>손절</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>-</td><td>-</td><td>-</td><td>-</td><td>-</td>
+        <td>-</td><td>-</td><td>-</td><td>-</td><td>-</td>
+      </tr>
+    </tbody>
+  </table>
 
-        const upbitPrice = upbit.trade_price ? upbit.trade_price.toLocaleString() : "오류";
-        const bithumbPrice = bithumb.closing_price ? bithumb.closing_price.toLocaleString() : "오류";
+  <div class="cols">
+    <div>
+      <h3>실시간 급등 (업비트)</h3>
+      <ul id="upbit-top-box"><li>-</li></ul>
+    </div>
+    <div>
+      <h3>실시간 급등 (빗썸)</h3>
+      <ul id="bithumb-top-box"><li>-</li></ul>
+    </div>
+  </div>
+</div>
 
-        document.getElementById('resultBox').innerHTML = `
-          🔹 업비트: ${upbitPrice} 원<br/>
-          🔸 빗썸: ${bithumbPrice} 원
-        `;
-      } catch (e) {
-        document.getElementById('resultBox').innerHTML = "⚠️ 데이터 불러오기 실패";
-      }
-    }
-  </script>
-</body>
-</html>
+<script>
+const REFRESH_MS = 5000;
+const $ = (s)=>document.querySelector(s);
+const fmtPct = n => !isFinite(n) ? '-' : (n>0?'+':'') + Number(n).toFixed(2) + '%';
+const fmtKRW = x => !isFinite(x) ? '-' : Number(x).toLocaleString('ko-KR');
+
+function tick(p){ if(p>=2000000)return 1000;if(p>=1000000)return 500;if(p>=500000)return 100;
+  if(p>=100000)return 50;if(p>=10000)return 10;if(p>=1000)return 1;if(p>=100)return 0.1;if(p>=10)return 0.01;return 0.001;}
+const rTick=(pr)=>{const t=tick(pr);return Math.round(pr/t)*t;}
+
+function pickRate(o){for(const k of ['ratePercent','fluctate_rate_24H','signed_change_rate','changeRate']){const v=Number(o?.[k]);if(isFinite(v))return k==='signed_change_rate'?v*100:v;}return NaN;}
+
+async function loadList(path, boxId){
+  try{
+    const r = await fetch(path,{cache:'no-store'});
+    const j = await r.json();
+    const box = $(boxId); box.innerHTML='';
+    if(!j.ok || !j.items?.length){ box.innerHTML='<li>-</li>'; return; }
+    j.items.forEach(it=>{
+      const pct = pickRate(it);
+      const name = it.name || it.symbol || '-';
+      const li = document.createElement('li');
+      li.innerHTML = `${name} <span class="${pct>=0?'up':'down'}">${fmtPct(pct)}</span>`;
+      box.appendChild(li);
+    });
+  }catch{ $(boxId).innerHTML='<li>-</li>'; }
+}
+
+function activeEx(){ return $('#tab-bithumb').classList.contains('on') ? 'BITHUMB' : 'UPBIT'; }
+function normalize(q){ const U=q.toUpperCase().trim(); if(!U) return null; return U.startsWith('KRW-')?{sym:U.slice(4),up:`${U}`}:{sym:U,up:`KRW-${U}`}; }
+
+async function quote(resolved, ex){
+  if(!resolved) return null;
+  if(ex==='BITHUMB'){
+    const r=await fetch(`/api/bithumb`,{cache:'no-store'}); const j=await r.json();
+    const it = j.items?.find(x=>x.symbol?.toUpperCase()===resolved.sym);
+    if(!it) return null; return {exchange:'BITHUMB', price:Number(it.price), changeRate:Number(it.ratePercent)};
+  }else{
+    const r=await fetch(`https://api.upbit.com/v1/ticker?markets=${encodeURIComponent(resolved.up)}`,{cache:'no-store'});
+    const j=await r.json(); if(!Array.isArray(j)||!j.length) return null; const t=j[0];
+    return {exchange:'UPBIT', price:Number(t.trade_price), changeRate:Number(t.signed_change_rate)*100};
+  }
+}
+
+function levels(price,chg){
+  const buy1=rTick(price*0.985), buy2=rTick(price*0.97), sell1=rTick(price*1.015), sell2=rTick(price*1.03), stop=rTick(price*0.965);
+  const ar=Math.abs(chg||0); let risk=3; if(ar<2)risk=1; else if(ar<4)risk=2; else if(ar<8)risk=3; else if(ar<12)risk=4; else risk=5;
+  const state=chg>0?'상승':(chg<0?'하락':'중립'), up=chg>0?'상승 지속 유력':'기술적 반등 구간', dn=chg<0?'하락 지속 유의':'당일 조정 가능';
+  return {buy1,buy2,sell1,sell2,stop,risk,state,up,dn};
+}
+
+function fill(q,lv){
+  const t = $('#result-table'); const cells = t.querySelectorAll('tbody tr td');
+  const data=[fmtKRW(q.price),lv.state,String(lv.risk),lv.up,lv.dn,fmtKRW(lv.buy1),fmtKRW(lv.buy2),fmtKRW(lv.sell1),fmtKRW(lv.sell2),fmtKRW(lv.stop)];
+  [...cells].forEach((td,i)=> td.textContent=data[i] ?? td.textContent);
+}
+
+async function run(){
+  const q = $('#search-input').value || '';
+  const ex = activeEx();
+  const res = normalize(q);
+  const qt = await quote(res, ex); if(!qt) return;
+  fill(qt, levels(qt.price, qt.changeRate));
+}
+
+$('#tab-upbit').onclick=()=>{$('#tab-bithumb').classList.remove('on');};
+$('#tab-bithumb').onclick=()=>{$('#tab-bithumb').classList.add('on');};
+$('#search-btn').onclick=(e)=>{e.preventDefault();run();};
+$('#search-input').addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();run();}});
+
+loadList('/api/upbit','#upbit-top-box'); loadList('/api/bithumb','#bithumb-top-box');
+setInterval(()=>loadList('/api/upbit','#upbit-top-box'),5000);
+setInterval(()=>loadList('/api/bithumb','#bithumb-top-box'),5000);
+</script>
+</body></html>
