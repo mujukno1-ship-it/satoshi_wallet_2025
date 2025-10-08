@@ -1,21 +1,27 @@
-// /api/tickers.js — 업비트 다중 티커 프록시 (24h 변동률/가격)
+// /api/tickers.js — 업비트 시세 데이터 프록시
 export default async function handler(req, res) {
-  const markets = (req.query.markets || "KRW-BTC,KRW-ETH").toString();
-  const url = `https://api.upbit.com/v1/ticker?markets=${encodeURIComponent(markets)}`;
   try {
-    const r = await fetch(url, { headers: { accept: "application/json" } });
-    if (!r.ok) throw new Error(`UPBIT_HTTP_${r.status}`);
-    const arr = await r.json();
-    // 필요한 필드만 간추려서 반환
-    const out = arr.map(x => ({
-      market: x.market,
-      trade_price: x.trade_price,
-      change: x.change,                         // "RISE" | "FALL" | "EVEN"
-      signed_change_rate: x.signed_change_rate, // 예: 0.1234  => 12.34%
-      acc_trade_price_24h: x.acc_trade_price_24h
-    }));
+    const q = String(req.query.markets || "").trim();
+    if (!q) return res.status(400).json({ error: "missing_markets_param" });
+
+    const arr = q.split(",").map(s => s.trim()).filter(Boolean);
+    const chunks = Array.from({ length: Math.ceil(arr.length / 30) }, (_, i) =>
+      arr.slice(i * 30, (i + 1) * 30)
+    );
+
+    let out = [];
+    for (const part of chunks) {
+      const url = "https://api.upbit.com/v1/ticker?markets=" +
+                  encodeURIComponent(part.join(","));
+      const r = await fetch(url);
+      if (!r.ok) continue;
+      out = out.concat(await r.json());
+      await new Promise(r => setTimeout(r, 50)); // 호출 속도 완화
+    }
+
+    res.setHeader("Cache-Control", "s-maxage=5, stale-while-revalidate=30");
     res.status(200).json(out);
   } catch (e) {
-    res.status(500).json({ error: "TICKERS_FAILED", detail: String(e) });
+    res.status(500).json({ error: "tickers_failed", detail: String(e) });
   }
 }
