@@ -14,6 +14,7 @@ export default async function handler(req, res) {
       trade_price: x.trade_price ?? null,
       change: x.change ?? null,
       signed_change_rate: x.signed_change_rate ?? null,
+      acc_trade_price_24h: x.acc_trade_price_24h ?? null,
       ts: Date.now()
     });
   } catch (e) {
