@@ -1,151 +1,148 @@
-  setInterval(()=>loadList('/api/bithumb','#bithumb-top-box'),5000);
-</script>
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>사토시의지갑 (업비트 전용)</title>
+  <style>
+    :root { color-scheme: dark; }
+    body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Apple SD Gothic Neo, "Noto Sans KR", sans-serif; background:#0b0f12; color:#e6e6e6; }
+    .wrap { max-width:1080px; margin:40px auto; padding:0 16px; }
+    h1 { font-size:28px; margin:0 0 18px; color:#9cc3ff; }
+    .row { display:flex; gap:8px; align-items:center; margin-bottom:12px; }
+    .btn { padding:8px 12px; background:#19324d; border:1px solid #2a4d75; color:#d9eaff; border-radius:8px; cursor:pointer; }
+    .btn:hover { filter:brightness(1.1); }
+    input[type="text"] { flex:1; padding:10px 12px; border-radius:8px; border:1px solid #23303b; background:#0d141a; color:#e8e8e8; }
+    .grid { display:grid; grid-template-columns:repeat(10, minmax(0,1fr)); gap:4px; font-size:14px; border:1px solid #1f2a33; background:#0c1318; border-radius:10px; overflow:hidden; }
+    .cell { padding:10px 8px; border-top:1px solid #10181f; border-left:1px solid #10181f; text-align:center; }
+    .head { background:#0f1a22; font-weight:600; }
+    .boxTitle { font-size:15px; margin:20px 0 8px; color:#b6c9ff; }
+    ul { margin:4px 0 0 0; padding-left:18px; }
+    #signalBox { display:none; margin:16px 0 8px; }
+    .cards { display:flex; gap:10px; flex-wrap:wrap; }
+    .card { padding:10px 12px; border-radius:10px; border:1px solid #24323d; background:#0e161c; }
+    .card.buy { background:#0f1a12; border-color:#1b3a2f; }
+    .card.sell { background:#1b1320; border-color:#3a2548; }
+    .card.stop { background:#211313; border-color:#4a2626; }
+    .card .t { opacity:.7; font-size:12px; margin-bottom:6px; }
+    .card .v { font-weight:700; font-size:18px; }
+    .muted { opacity:.7; font-size:12px; }
+    @media (max-width: 720px) { .grid { font-size:13px; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>사토시의지갑 (업비트 전용)</h1>
 
-<!-- ===== 타점 요약 박스 ===== -->
-<div id="signalBox" style="display:none;margin:12px 0 4px 0;">
-  <div style="display:flex;gap:10px;flex-wrap:wrap;">
-    <div style="padding:10px 12px;background:#111;border:1px solid #2a2a2a;border-radius:8px;">
-      <div style="opacity:.7;font-size:12px;margin-bottom:6px;">기준가</div>
-      <div id="p-base" style="font-weight:700;font-size:18px;">-</div>
+    <div class="row">
+      <input id="q" type="text" placeholder="코인명/심볼 (예: BTC 또는 KRW-BTC)" />
+      <button id="btn-search" class="btn">검색</button>
     </div>
-    <div style="padding:10px 12px;background:#0f1a12;border:1px solid #1e3a2f;border-radius:8px;">
-      <div style="opacity:.7;font-size:12px;margin-bottom:6px;">매수1 (-1.5%)</div>
-      <div id="p-buy1" style="font-weight:700;font-size:18px;">-</div>
+
+    <!-- 요약 타점 -->
+    <div id="signalBox">
+      <div class="cards">
+        <div class="card"><div class="t">기준가</div><div id="p-base" class="v">-</div></div>
+        <div class="card buy"><div class="t">매수1 (-1.5%)</div><div id="p-buy1" class="v">-</div></div>
+        <div class="card buy"><div class="t">매수2 (-2.5%)</div><div id="p-buy2" class="v">-</div></div>
+        <div class="card sell"><div class="t">매도1 (+1.5%)</div><div id="p-sell1" class="v">-</div></div>
+        <div class="card sell"><div class="t">매도2 (+3%)</div><div id="p-sell2" class="v">-</div></div>
+        <div class="card stop"><div class="t">손절 (-3.5%)</div><div id="p-stop" class="v">-</div></div>
+      </div>
+      <div id="p-symbol" class="muted" style="margin-top:6px;"></div>
     </div>
-    <div style="padding:10px 12px;background:#0f1a12;border:1px solid #1e3a2f;border-radius:8px;">
-      <div style="opacity:.7;font-size:12px;margin-bottom:6px;">매수2 (-2.5%)</div>
-      <div id="p-buy2" style="font-weight:700;font-size:18px;">-</div>
-    </div>
-    <div style="padding:10px 12px;background:#1b1320;border:1px solid #3a2548;border-radius:8px;">
-      <div style="opacity:.7;font-size:12px;margin-bottom:6px;">매도1 (+1.5%)</div>
-      <div id="p-sell1" style="font-weight:700;font-size:18px;">-</div>
-    </div>
-    <div style="padding:10px 12px;background:#1b1320;border:1px solid #3a2548;border-radius:8px;">
-      <div style="opacity:.7;font-size:12px;margin-bottom:6px;">매도2 (+3%)</div>
-      <div id="p-sell2" style="font-weight:700;font-size:18px;">-</div>
-    </div>
-    <div style="padding:10px 12px;background:#211313;border:1px solid #4a2626;border-radius:8px;">
-      <div style="opacity:.7;font-size:12px;margin-bottom:6px;">손절 (-3.5%)</div>
-      <div id="p-stop" style="font-weight:700;font-size:18px;">-</div>
-    </div>
+
+    <!-- 급등 리스트 -->
+    <div class="boxTitle">실시간 급등 (업비트)</div>
+    <ul id="upbit-top"></ul>
   </div>
-  <div id="p-symbol" style="margin-top:6px;opacity:.7;font-size:12px;"></div>
-</div>
-<!-- ===== /타점 요약 박스 ===== -->
 
-<script>
-const fmt = (n) => Number(n).toLocaleString("ko-KR");
-let CURRENT_EXCHANGE = "UPBIT";
+  <script>
+    const fmt = n => Number(n).toLocaleString("ko-KR");
+    const $q = document.getElementById('q');
+    const $btnSearch = document.getElementById('btn-search');
+    const $box = document.getElementById('signalBox');
+    const $sym = document.getElementById('p-symbol');
+    const $base = document.getElementById('p-base');
+    const $b1 = document.getElementById('p-buy1');
+    const $b2 = document.getElementById('p-buy2');
+    const $s1 = document.getElementById('p-sell1');
+    const $s2 = document.getElementById('p-sell2');
+    const $st = document.getElementById('p-stop');
+    const $list = document.getElementById('upbit-top');
 
-document.querySelectorAll("button").forEach(btn=>{
-  if (btn.textContent.includes("업비트")) btn.addEventListener("click", ()=>{CURRENT_EXCHANGE="UPBIT"; refreshAll();});
-  if (btn.textContent.includes("빗썸"))  btn.addEventListener("click", ()=>{CURRENT_EXCHANGE="BITHUMB"; refreshAll();});
-});
-
-const $q = document.querySelector('input[type="text"]');
-const $searchBtn = Array.from(document.querySelectorAll('button')).find(b=>b.textContent.includes('검색'));
-const $box = document.getElementById("signalBox");
-const $symEl = document.getElementById("p-symbol");
-const $base  = document.getElementById("p-base");
-const $b1    = document.getElementById("p-buy1");
-const $b2    = document.getElementById("p-buy2");
-const $s1    = document.getElementById("p-sell1");
-const $s2    = document.getElementById("p-sell2");
-const $st    = document.getElementById("p-stop");
-const $lists = Array.from(document.querySelectorAll("ul, ol"));
-const $upbitList   = $lists[0];
-const $bithumbList = $lists[1];
-
-async function loadUpbit() {
-  const r = await fetch("/api/upbit");
-  if (!r.ok) throw new Error("UPBIT API " + r.status);
-  return r.json();
-}
-async function loadBithumb() {
-  const r = await fetch("/api/bithumb");
-  if (!r.ok) throw new Error("BITHUMB API " + r.status);
-  return r.json();
-}
-
-function renderGainers($target, items, label) {
-  if (!$target) return;
-  $target.innerHTML = "";
-  if (!items?.length) {
-    $target.innerHTML = `<li>- (${label} 데이터 없음)</li>`;
-    return;
-  }
-  const top = [...items].sort((a,b)=>(Number(b.changePct)||0)-(Number(a.changePct)||0)).slice(0,20);
-  top.forEach(x=>{
-    const name = x.name || x.symbol || "-";
-    const pct  = Number(x.changePct||0).toFixed(2);
-    const li = document.createElement("li");
-    li.innerHTML = `${name} <span style="opacity:.6">+${pct}%</span>`;
-    $target.appendChild(li);
-  });
-}
-
-function renderSignals(coin) {
-  if (!coin) { $box.style.display="none"; return; }
-  const price = Number(coin.price||coin.close||0);
-  if (!price) { $box.style.display="none"; return; }
-  const buy1 = (price * 0.985).toFixed(1);
-  const buy2 = (price * 0.975).toFixed(1);
-  const sell1= (price * 1.015).toFixed(1);
-  const sell2= (price * 1.03 ).toFixed(1);
-  const stop = (price * 0.965).toFixed(1);
-  $base.textContent = fmt(price);
-  $b1.textContent   = fmt(buy1);
-  $b2.textContent   = fmt(buy2);
-  $s1.textContent   = fmt(sell1);
-  $s2.textContent   = fmt(sell2);
-  $st.textContent   = fmt(stop);
-  const label = coin.name || coin.symbol || "-";
-  $symEl.textContent = `${label} · ${CURRENT_EXCHANGE === "UPBIT" ? "업비트" : "빗썸"}`;
-  $box.style.display = "block";
-}
-
-function pickCoin(items, keyword) {
-  if (!items?.length) return null;
-  const kw = (keyword||"").trim().toUpperCase();
-  if (!kw) return items[0];
-  return items.find(x=>{
-    const name = (x.name||"").toUpperCase();
-    const sym  = (x.symbol||"").toUpperCase();
-    return name.includes(kw) || sym.includes(kw);
-  }) || items[0];
-}
-
-async function refreshAll() {
-  try {
-    const upbit = await loadUpbit();
-    renderGainers($upbitList, upbit.items, "업비트");
-    if (CURRENT_EXCHANGE === "UPBIT") {
-      const coin = pickCoin(upbit.items, $q?.value);
-      renderSignals(coin);
+    async function getUpbit() {
+      const r = await fetch('/api/upbit', { cache:'no-store' });
+      if (!r.ok) throw new Error('UPBIT ' + r.status);
+      return r.json();
     }
-  } catch(e) {
-    if ($upbitList) $upbitList.innerHTML = `<li>- (업비트 데이터 없음)</li>`;
-    if (CURRENT_EXCHANGE==="UPBIT") { $box.style.display="none"; }
-  }
 
-  try {
-    const bith = await loadBithumb();
-    renderGainers($bithumbList, bith.items, "빗썸");
-    if (CURRENT_EXCHANGE === "BITHUMB") {
-      const coin = pickCoin(bith.items, $q?.value);
-      renderSignals(coin);
+    function renderTop($ul, items) {
+      $ul.innerHTML = '';
+      if (!items?.length) {
+        $ul.innerHTML = `<li>- 데이터 없음</li>`;
+        return;
+      }
+      const top = [...items]
+        .sort((a,b)=>(Number(b.changePct)||0)-(Number(a.changePct)||0))
+        .slice(0, 30);
+      for (const x of top) {
+        const name = x.name || x.symbol || '-';
+        const pct = Number(x.changePct||0).toFixed(2);
+        const li = document.createElement('li');
+        li.innerHTML = `${name} <span class="muted">+${pct}%</span>`;
+        $ul.appendChild(li);
+      }
     }
-  } catch(e) {
-    if ($bithumbList) $bithumbList.innerHTML = `<li>- (빗썸 점검중)</li>`;
-    if (CURRENT_EXCHANGE==="BITHUMB") { $box.style.display="none"; }
-  }
-}
 
-if ($searchBtn) $searchBtn.addEventListener("click", refreshAll);
-if ($q) $q.addEventListener("keydown", (e)=>{ if (e.key === "Enter") refreshAll(); });
-refreshAll();
-setInterval(refreshAll, 60000);
-</script>
+    function renderSignal(coin) {
+      if (!coin) { $box.style.display='none'; return; }
+      const price = Number(coin.price || coin.close || 0);
+      if (!price) { $box.style.display='none'; return; }
 
+      const buy1  = (price * 0.985).toFixed(1);
+      const buy2  = (price * 0.975).toFixed(1);
+      const sell1 = (price * 1.015).toFixed(1);
+      const sell2 = (price * 1.03 ).toFixed(1);
+      const stop  = (price * 0.965).toFixed(1);
+
+      $base.textContent = fmt(price);
+      $b1.textContent = fmt(buy1);
+      $b2.textContent = fmt(buy2);
+      $s1.textContent = fmt(sell1);
+      $s2.textContent = fmt(sell2);
+      $st.textContent = fmt(stop);
+      $sym.textContent = `${coin.name || coin.symbol || '-'} · 업비트`;
+      $box.style.display = 'block';
+    }
+
+    function pick(items, keyword) {
+      if (!items?.length) return null;
+      const kw = (keyword||'').trim().toUpperCase();
+      if (!kw) return items[0];
+      return items.find(x => {
+        const n = (x.name||'').toUpperCase();
+        const s = (x.symbol||'').toUpperCase();
+        return n.includes(kw) || s.includes(kw);
+      }) || items[0];
+    }
+
+    async function refresh() {
+      try {
+        const up = await getUpbit();
+        renderTop($list, up.items);
+        renderSignal(pick(up.items, $q.value));
+      } catch (e) {
+        $list.innerHTML = '<li>- 업비트 데이터 없음</li>';
+        $box.style.display='none';
+      }
+    }
+
+    $btnSearch.addEventListener('click', refresh);
+    $q.addEventListener('keydown', e=>{ if (e.key==='Enter') refresh(); });
+
+    refresh();
+    setInterval(refresh, 5000);
+  </script>
 </body>
 </html>
