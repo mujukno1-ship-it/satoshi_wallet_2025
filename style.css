@@ -1,0 +1,84 @@
+body {
+  font-family: "Pretendard", "Noto Sans KR", sans-serif;
+  background-color: #f9fafc;
+  color: #222;
+  margin: 0;
+  padding: 20px;
+}
+
+.container {
+  max-width: 1100px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+h1 {
+  color: #0077ff;
+  margin-bottom: 8px;
+}
+
+.subtitle {
+  color: #666;
+  margin-bottom: 25px;
+}
+
+.search-box {
+  margin-bottom: 20px;
+}
+
+#search {
+  width: 300px;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+}
+
+#search-btn {
+  padding: 10px 20px;
+  background-color: #0077ff;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+#coin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 15px;
+  background-color: white;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.05);
+}
+
+#coin-table th {
+  background-color: #f1f4f9;
+  padding: 12px;
+  color: #333;
+}
+
+#coin-table td {
+  border-bottom: 1px solid #eee;
+  padding: 10px;
+}
+
+#coin-table tr:hover {
+  background-color: #f9fcff;
+}
+
+td:nth-child(2), td:nth-child(3), td:nth-child(4), td:nth-child(5), td:nth-child(6) {
+  text-align: right;
+  color: #000;
+}
+
+td:nth-child(7) {
+  color: #ff7b00;
+}
+
+td:nth-child(8) {
+  font-weight: bold;
+}
+
+td:nth-child(9) {
+  color: #555;
+  font-style: italic;
+}
