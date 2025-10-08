@@ -1,12 +1,13 @@
-// api/upbit.js — 업비트 실시간 시세 불러오기
+// api/upbit.js — 업비트 현재가 유틸
 export async function getUpbitPrice(market = "KRW-BTC") {
-  const url = `https://api.upbit.com/v1/ticker?markets=${market}`;
+  const url = `https://api.upbit.com/v1/ticker?markets=${encodeURIComponent(market)}`;
   try {
-    const res = await fetch(url);
+    const res = await fetch(url, { headers: { accept: "application/json" } });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
-    return data[0].trade_price; // 현재가
-  } catch (err) {
-    console.error("❌ 업비트 시세 오류:", err);
+    return typeof data?.[0]?.trade_price === "number" ? data[0].trade_price : null;
+  } catch (e) {
+    console.error("❌ 업비트 시세 오류:", e);
     return null;
   }
 }
