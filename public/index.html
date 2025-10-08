@@ -103,92 +103,142 @@ button:hover { background: #2ea043; }
 
 <!-- ======================== SCRIPT ======================== -->
 <script>
+/* ====== 공통 ====== */
 const REFRESH_MS = 5000;
 const bust = () => `ts=${Date.now()}`;
-const $ = (sel)=>document.querySelector(sel);
+const $ = (s)=>document.querySelector(s);
+const $$ = (s)=>document.querySelectorAll(s);
+function fmtPct(n){ if(!isFinite(n)) return '-'; const s=n>0?'+':(n<0?'':''); return s+Number(n).toFixed(2)+'%'; }
+function fmtKRW(x){ if(!isFinite(x)) return '-'; return Number(x).toLocaleString('ko-KR'); }
 
-function fmtPct(n){if(!isFinite(n))return'-';const s=n>0?'+':(n<0?'':'');return s+Number(n).toFixed(2)+'%';}
-function fmtKRW(x){if(!isFinite(x))return'-';return Number(x).toLocaleString('ko-KR');}
+/* ====== 호가단위(업비트/빗썸) ====== */
+function upbitTick(p){
+  if (p >= 2000000) return 1000;
+  if (p >= 1000000) return 500;
+  if (p >= 500000)  return 100;
+  if (p >= 100000)  return 50;
+  if (p >= 10000)   return 10;
+  if (p >= 1000)    return 1;
+  if (p >= 100)     return 0.1;
+  if (p >= 10)      return 0.01;
+  return 0.001;
+}
+const bithumbTick = upbitTick; // 필요 시 분리 가능
+function roundToTick(price, ex){ const t = ex==='BITHUMB' ? bithumbTick(price) : upbitTick(price); return Math.round(price/t)*t; }
 
-function upbitTick(p){if(p>=2000000)return1000;if(p>=1000000)return500;if(p>=500000)return100;if(p>=100000)return50;if(p>=10000)return10;if(p>=1000)return1;if(p>=100)return0.1;if(p>=10)return0.01;return0.001;}
-const bithumbTick=upbitTick;
-function roundToTick(price,ex){const t=(ex==='BITHUMB'?bithumbTick(price):upbitTick(price));return Math.round(price/t)*t;}
-
+/* ====== 급등 리스트 (업/빗) — 퍼센트 안전 파싱 ====== */
+function pickRate(obj){
+  const cands = ['ratePercent','rate','fluctate_rate_24H','signed_change_rate','changeRate'];
+  for (const k of cands){ const v = Number(obj?.[k]); if (isFinite(v)) return k==='signed_change_rate'? v*100 : v; }
+  return NaN;
+}
 async function loadUpbitTop(){
   try{
-    const r=await fetch('/api/upbit?'+bust(),{cache:'no-store'});const j=await r.json();
-    const box=$('#upbit-top-box');box.innerHTML='';
-    if(!j.ok||!j.items?.length){box.innerHTML='<li>-</li>';return;}
+    const r=await fetch('/api/upbit?'+bust(),{cache:'no-store'}); const j=await r.json();
+    const box = $('#upbit-top-box'); if (!box) return; box.innerHTML='';
+    if (!j.ok || !j.items?.length) { box.innerHTML='<li>-</li>'; return; }
     j.items.forEach(it=>{
-      const pct=isFinite(it.ratePercent)?it.ratePercent:it.rate;
-      const name=it.name||it.korean_name||it.symbol||'-';
-      box.innerHTML+=`<li class="row"><span>${name}</span><span class="${pct>=0?'up':'down'}">${fmtPct(pct)}</span></li>`;
+      const pct = pickRate(it);
+      const name = it.name || it.korean_name || it.symbol || '-';
+      box.insertAdjacentHTML('beforeend', `<li class="row"><span>${name}</span><span class="${pct>=0?'up':'down'}">${fmtPct(pct)}</span></li>`);
     });
-  }catch{($('#upbit-top-box')||{}).innerHTML='<li>-</li>';}
+  }catch{ const b=$('#upbit-top-box'); if(b) b.innerHTML='<li>-</li>'; }
 }
 async function loadBithumbTop(){
   try{
-    const r=await fetch('/api/bithumb?'+bust(),{cache:'no-store'});const j=await r.json();
-    const box=$('#bithumb-top-box');box.innerHTML='';
-    if(!j.ok||!j.items?.length){box.innerHTML='<li>-</li>';return;}
+    const r=await fetch('/api/bithumb?'+bust(),{cache:'no-store'}); const j=await r.json();
+    const box = $('#bithumb-top-box'); if (!box) return; box.innerHTML='';
+    if (!j.ok || !j.items?.length) { box.innerHTML='<li>-</li>'; return; }
     j.items.forEach(it=>{
-      const pct=isFinite(it.ratePercent)?it.ratePercent:it.rate;
-      const name=it.name||it.symbol||'-';
-      box.innerHTML+=`<li class="row"><span>${name}</span><span class="${pct>=0?'up':'down'}">${fmtPct(pct)}</span></li>`;
+      const pct = pickRate(it);                      // ★ undefined% 방지
+      const name = it.name || it.symbol || '-';
+      box.insertAdjacentHTML('beforeend', `<li class="row"><span>${name}</span><span class="${pct>=0?'up':'down'}">${fmtPct(pct)}</span></li>`);
     });
-  }catch{($('#bithumb-top-box')||{}).innerHTML='<li>-</li>';}
+  }catch{ const b=$('#bithumb-top-box'); if(b) b.innerHTML='<li>-</li>'; }
 }
 
-function upbitOrBithumb(){return $('#tab-bithumb').classList.contains('active')?'BITHUMB':'UPBIT';}
-$('#tab-upbit').onclick=()=>{$('#tab-upbit').classList.add('active');$('#tab-bithumb').classList.remove('active');};
-$('#tab-bithumb').onclick=()=>{$('#tab-bithumb').classList.add('active');$('#tab-upbit').classList.remove('active');};
-
-function normalizeQuery(raw){const q=(raw||'').trim();if(!q)return null;const U=q.toUpperCase();if(U.startsWith('KRW-'))return{symbol:U.replace('KRW-',''),upbitMarket:U,hint:'UPBIT'};if(/^[A-Z0-9]+$/.test(U))return{symbol:U,upbitMarket:`KRW-${U}`};return{symbol:U,upbitMarket:`KRW-${U}`};}
-
-async function fetchQuote(resolved,ex){
-  if(!resolved)return null;
-  if(ex==='BITHUMB'){const u=`https://api.bithumb.com/public/ticker/${resolved.symbol}_KRW?${bust()}`;
-    const r=await fetch(u,{cache:'no-store'});const j=await r.json();
-    if(!j||j.status!=='0000'||!j.data)return null;
-    return{exchange:'BITHUMB',price:Number(j.data.closing_price),changeRate:Number(j.data.fluctate_rate_24H)};
-  }else{
-    const u=`https://api.upbit.com/v1/ticker?markets=${encodeURIComponent(resolved.upbitMarket)}&${bust()}`;
-    const r=await fetch(u,{cache:'no-store'});const j=await r.json();
-    if(!Array.isArray(j)||!j.length)return null;
+/* ====== 검색 ====== */
+function activeExchange(){
+  // 탭 버튼이 없더라도, "빗썸" 글자에 active 있으면 빗썸으로 인식
+  const bt = $('#tab-bithumb'); const up = $('#tab-upbit');
+  if (bt && (bt.classList.contains('active') || bt.ariaPressed==='true')) return 'BITHUMB';
+  if (up && (up.classList.contains('active') || up.ariaPressed==='true')) return 'UPBIT';
+  // 기본값 업비트
+  return 'UPBIT';
+}
+function normalizeQuery(raw){
+  const q = (raw||'').trim(); if (!q) return null;
+  const U = q.toUpperCase();
+  if (U.startsWith('KRW-')) return {symbol: U.replace('KRW-',''), upbitMarket: U};
+  if (/^[A-Z0-9]+$/.test(U)) return {symbol: U, upbitMarket: `KRW-${U}`};
+  // 한글명은 심볼 추측 어려워서 우선 업비트 KRW-심볼로 시도
+  return {symbol: U, upbitMarket: `KRW-${U}`};
+}
+async function fetchQuote(resolved, ex){
+  if (!resolved) return null;
+  if (ex==='BITHUMB'){
+    const url = `https://api.bithumb.com/public/ticker/${resolved.symbol}_KRW?${bust()}`;
+    const r = await fetch(url,{cache:'no-store'}); const j=await r.json();
+    if (!j || j.status!=='0000' || !j.data) return null;
+    return { exchange:'BITHUMB', price:Number(j.data.closing_price), changeRate:Number(j.data.fluctate_rate_24H) };
+  } else {
+    const url = `https://api.upbit.com/v1/ticker?markets=${encodeURIComponent(resolved.upbitMarket)}&${bust()}`;
+    const r = await fetch(url,{cache:'no-store'}); const j=await r.json();
+    if (!Array.isArray(j) || !j.length) return null;
     const t=j[0];
-    return{exchange:'UPBIT',price:Number(t.trade_price),changeRate:Number(t.signed_change_rate)*100};
+    return { exchange:'UPBIT', price:Number(t.trade_price), changeRate:Number(t.signed_change_rate)*100 };
   }
 }
-
-function calcLevels(price,chg,ex){
-  const rt=p=>roundToTick(p,ex);
-  const buy1=rt(price*0.985),buy2=rt(price*0.97),sell1=rt(price*1.015),sell2=rt(price*1.03),stop=rt(price*0.965);
-  const ar=Math.abs(chg||0);let risk=3;if(ar<2)risk=1;else if(ar<4)risk=2;else if(ar<8)risk=3;else if(ar<12)risk=4;else risk=5;
-  const state=chg>0?'상승':(chg<0?'하락':'중립');
-  const upExp=chg>0?'상승 지속 유력':'기술적 반등 구간';
-  const dnExp=chg<0?'하락 지속 유의':'당일 조정 가능';
-  return{buy1,buy2,sell1,sell2,stop,risk,state,upExp,dnExp};
+function calcLevels(price, chg, ex){
+  const rt=p=>roundToTick(p, ex);
+  const buy1=rt(price*0.985), buy2=rt(price*0.970), sell1=rt(price*1.015), sell2=rt(price*1.030), stop=rt(price*0.965);
+  const ar=Math.abs(chg||0); let risk=3; if(ar<2)risk=1; else if(ar<4)risk=2; else if(ar<8)risk=3; else if(ar<12)risk=4; else risk=5;
+  const state=chg>0?'상승':(chg<0?'하락':'중립'); const upExp=chg>0?'상승 지속 유력':'기술적 반등 구간'; const dnExp=chg<0?'하락 지속 유의':'당일 조정 가능';
+  return {buy1,buy2,sell1,sell2,stop,risk,state,upExp,dnExp};
 }
-
-function fillCells(q,lv){
-  const idv={'cell-base':fmtKRW(q.price),'cell-state':lv.state,'cell-risk':String(lv.risk),'cell-up':lv.upExp,'cell-down':lv.dnExp,'cell-buy1':fmtKRW(lv.buy1),'cell-buy2':fmtKRW(lv.buy2),'cell-sell1':fmtKRW(lv.sell1),'cell-sell2':fmtKRW(lv.sell2),'cell-stop':fmtKRW(lv.stop)};
-  for(const [k,v] of Object.entries(idv)){const e=document.getElementById(k);if(e)e.textContent=v;}
+function setCell(id, v){ const el=document.getElementById(id); if(el) el.textContent = v; }
+function fillCells(quote, lv){
+  setCell('cell-base',  fmtKRW(quote.price));
+  setCell('cell-state', lv.state);
+  setCell('cell-risk',  String(lv.risk));
+  setCell('cell-up',    lv.upExp);
+  setCell('cell-down',  lv.dnExp);
+  setCell('cell-buy1',  fmtKRW(lv.buy1));
+  setCell('cell-buy2',  fmtKRW(lv.buy2));
+  setCell('cell-sell1', fmtKRW(lv.sell1));
+  setCell('cell-sell2', fmtKRW(lv.sell2));
+  setCell('cell-stop',  fmtKRW(lv.stop));
 }
-
 async function runSearch(){
-  const input=$('#search-input');const q=input?input.value:'';const ex=upbitOrBithumb();const res=normalizeQuery(q);
-  const quote=await fetchQuote(res,ex);if(!quote)return;
-  const lv=calcLevels(quote.price,quote.changeRate,quote.exchange);fillCells(quote,lv);
+  const input = $('#search-input') || document.querySelector('input[type="text"]');
+  const q = input ? input.value : '';
+  const ex = activeExchange();
+  const res = normalizeQuery(q);
+  const quote = await fetchQuote(res, ex);
+  if (!quote) return;
+  fillCells(quote, calcLevels(quote.price, quote.changeRate, quote.exchange));
 }
 
-$('#search-btn').onclick=(e)=>{e.preventDefault();runSearch();};
-$('#search-input').addEventListener('keydown',(e)=>{if(e.key==='Enter'){e.preventDefault();runSearch();}});
+/* ====== 엔터키 & 버튼 연결 (id 없어도 동작) ====== */
+function wireSearch(){
+  const input = $('#search-input') || document.querySelector('input[type="text"]');
+  const btn   = $('#search-btn')   || document.querySelector('button[type="button"], button');
+  if (input){ input.addEventListener('keydown', (e)=>{ if (e.key==='Enter'){ e.preventDefault(); runSearch(); } }); }
+  if (btn){ btn.addEventListener('click', (e)=>{ e.preventDefault(); runSearch(); }); }
+  // 혹시 탭 버튼 있으면 active 토글
+  const up = $('#tab-upbit'), bt = $('#tab-bithumb');
+  if (up) up.addEventListener('click', ()=>{ up.classList.add('active'); if(bt) bt.classList.remove('active'); });
+  if (bt) bt.addEventListener('click', ()=>{ bt.classList.add('active'); if(up) up.classList.remove('active'); });
+}
 
-document.addEventListener('DOMContentLoaded',()=>{
-  loadUpbitTop();loadBithumbTop();
-  setInterval(loadUpbitTop,REFRESH_MS);
-  setInterval(loadBithumbTop,REFRESH_MS);
+/* ====== 초기화 ====== */
+document.addEventListener('DOMContentLoaded', ()=>{
+  wireSearch();
+  loadUpbitTop(); loadBithumbTop();
+  setInterval(loadUpbitTop, REFRESH_MS);
+  setInterval(loadBithumbTop, REFRESH_MS);
 });
 </script>
+
 </body>
 </html>
