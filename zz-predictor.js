@@ -1,9 +1,9 @@
-// /zz-predictor.js — 기존 화면 유지 + 실시간 시세 갱신
+// /zz-predictor.js — 업비트 실시간 시세 박스 완성
 import { getUpbitPrice } from "/js/upbit.js";
 
-const COINS = ["KRW-BTC", "KRW-ETH", "KRW-XRP", "KRW-DOGE"]; // 여기서 추가/삭제
+const COINS = ["KRW-BTC", "KRW-ETH", "KRW-XRP", "KRW-DOGE"]; // 원하는 코인 추가 가능
 
-function fmtKRW(x, max = 4) {
+function fmtKRW(x, max = 2) {
   return (typeof x === "number" && isFinite(x))
     ? x.toLocaleString("ko-KR", { maximumFractionDigits: max }) + " 원"
     : "불러오기 실패";
@@ -14,21 +14,21 @@ async function renderUpbitBox() {
   const wrap = document.getElementById("zz-upbit-lines");
   if (!wrap) return;
 
-  ts.textContent = "KST " + new Date().toLocaleString("ko-KR", { hour12: false });
+  ts.textContent = "업데이트: " + new Date().toLocaleString("ko-KR", { hour12: false });
   wrap.innerHTML = "";
 
-  for (const m of COINS) {
-    const px = await getUpbitPrice(m);
-    const name = m.replace("KRW-", "");
+  for (const market of COINS) {
+    const price = await getUpbitPrice(market);
+    const name = market.replace("KRW-", "");
     wrap.innerHTML += `
-      <div style="display:flex;justify-content:space-between;border-bottom:1px solid #f1f5f9;padding:8px 0">
-        <span>💎 ${name}</span><b>${fmtKRW(px)}</b>
+      <div style="display:flex;justify-content:space-between;border-bottom:1px solid #e2e8f0;padding:6px 0">
+        <span>💎 ${name}</span>
+        <b>${fmtKRW(price)}</b>
       </div>`;
   }
 }
 
-// 최초 실행 + 3초마다 갱신
 document.addEventListener("DOMContentLoaded", () => {
   renderUpbitBox();
-  setInterval(renderUpbitBox, 3000);
+  setInterval(renderUpbitBox, 3000); // 3초마다 새로고침
 });
