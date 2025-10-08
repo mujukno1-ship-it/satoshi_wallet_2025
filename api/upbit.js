@@ -1,4 +1,4 @@
-// api/upbit.js — 업비트 현재가 유틸
+// api/upbit.js — 업비트 현재가 유틸 (기존 HTML 안 건드림)
 export async function getUpbitPrice(market = "KRW-BTC") {
   const url = `https://api.upbit.com/v1/ticker?markets=${encodeURIComponent(market)}`;
   try {
