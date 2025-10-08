@@ -154,7 +154,9 @@ import { getUpbitPrice } from "./api/upbit.js";
 <!-- ===== /ZZE block ===== -->
 
 </body><!-- ===== ZZE: 기존내용 유지 + 업비트 실시간 + 8% 예측 패널 + 오류수정 (한 덩어리) ===== -->
-<script type="module">
+<script type="module" src="/zz-predictor.js"></script>
+
+  <script type="module">
 /* ---------- 0) 공통: 안전한 한국형 숫자 포맷 (업비트 호가 소수 지원) ---------- */
 function fmtKRW(x, max=4){
   if(typeof x!=="number" || !isFinite(x)) return "불러오기 실패";
