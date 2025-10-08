@@ -1,30 +1,33 @@
-// /api/upbit.js
+// /api/bithumb.js
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store, no-cache, max-age=0, s-maxage=0');
   res.setHeader('Access-Control-Allow-Origin', '*');
 
   try {
-    const mres = await fetch('https://api.upbit.com/v1/market/all?isDetails=false', { cache: 'no-store' });
-    if (!mres.ok) throw new Error(`upbit markets HTTP ${mres.status}`);
-    const markets = await mres.json();
-    const krw = markets.filter(m => m.market && m.market.startsWith('KRW-')).slice(0, 80);
-    const marketsParam = krw.map(m => m.market).join(',');
+    const r = await fetch('https://api.bithumb.com/public/ticker/ALL_KRW', { cache: 'no-store' });
+    if (!r.ok) throw new Error(`bithumb HTTP ${r.status}`);
+    const j = await r.json();
 
-    const tres = await fetch(`https://api.upbit.com/v1/ticker?markets=${encodeURIComponent(marketsParam)}`, { cache: 'no-store' });
-    if (!tres.ok) throw new Error(`upbit ticker HTTP ${tres.status}`);
-    const tickers = await tres.json();
+    const raw = j?.data || {};
+    const items = Object.entries(raw)
+      .filter(([k,v]) => k !== 'date' && v && (v.closing_price || v.closing_price === 0))
+      .map(([symbol, v]) => {
+        const price = Number(v.closing_price);
+        // 빗썸은 24H 등락률 필드가 fluctuate_rate_24H 또는 fluctuate_rate 인 경우가 있음
+        const rate = (v.fluctate_rate_24H !== undefined)
+          ? Number(v.fluctate_rate_24H)
+          : Number(v.fluctate_rate ?? 0);
 
-    const nameMap = new Map(krw.map(m => [m.market, m.korean_name || m.market]));
-
-    const items = (tickers || []).map(t => ({
-      symbol: (t.market || '').replace('KRW-',''),
-      name: nameMap.get(t.market) || (t.market || '').replace('KRW-',''),
-      price: Number(t.trade_price || 0),
-      ratePercent: Number(t.signed_change_rate || 0) * 100
-    }))
-    .filter(x => isFinite(x.price))
-    .sort((a,b)=> (b.ratePercent||0) - (a.ratePercent||0))
-    .slice(0, 12);
+        return {
+          symbol,
+          name: symbol,
+          price: isFinite(price) ? price : null,
+          ratePercent: isFinite(rate) ? rate : null
+        };
+      })
+      .filter(x => x.price !== null && x.ratePercent !== null)
+      .sort((a,b)=> (b.ratePercent||0) - (a.ratePercent||0))
+      .slice(0, 12);
 
     return res.status(200).json({ ok: true, items });
   } catch (e) {
