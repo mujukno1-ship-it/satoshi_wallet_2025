@@ -1,91 +1,104 @@
-// /api/tickers.js — 사토시의지갑 완전통합버전
-// ✅ 기존기능유지 + 검색기능추가 + 급등·급락 한세트 + 오류수정
-
+// /api/tickers.js — 검색 작동 + 급등/급락 세트 + 공개 API만 사용
 import { marketsKRW, getTickerFast, getCandles1mFast } from "../lib/upbit_private.js";
 
-export default async function handler(req, res) {
-  try {
+const safeNum = (v, d = 0) => (Number.isFinite(+v) ? +v : d);
+const round = (n, p = 2) => Math.round(n * 10 ** p) / 10 ** p;
+
+function upbitTick(price){
+  const p = Number(price);
+  if (p >= 2_000_000) return 1000;
+  if (p >= 1_000_000) return 500;
+  if (p >=   500_000) return 100;
+  if (p >=   100_000) return 50;
+  if (p >=    10_000) return 10;
+  if (p >=     1_000) return 1;
+  if (p >=       100) return 0.1;
+  if (p >=        10) return 0.01;
+  return 0.001;
+}
+const roundTick = (price) => { const t = upbitTick(price); return Math.round(price / t) * t; };
+
+function detectState(changePct){
+  if (changePct > 5) return "급등🚀";
+  if (changePct > 2) return "예열♨️";
+  if (changePct < -5) return "급락⚠️";
+  return "중립";
+}
+
+export default async function handler(req, res){
+  try{
     const url = new URL(req.url, "http://localhost");
     const q = (url.searchParams.get("q") || "").trim().toLowerCase();
 
-    // 🔹 1. 전체 마켓 가져오기
-    const markets = await marketsKRW();
-    const codes = markets.map(m => m.market);
-    const names = Object.fromEntries(markets.map(m => [m.market, m.korean_name]));
-
-    // 🔹 2. 현재가 불러오기
-    const tickerMap = await getTickerFast(codes);
-    const tickers = Object.values(tickerMap);
-
-    // 🔹 3. 최근 1분 봉 가져오기 (급등/급락 탐지용)
-    const candles = await getCandles1mFast(codes);
-    const candleMap = Object.fromEntries(candles.map(c => [c.market, c]));
-
-    // 🔹 4. 검색 필터 (코인명 or 심볼 포함 시)
-    const filtered = q
-      ? tickers.filter(t => {
-          const name = names[t.market]?.toLowerCase() || "";
-          const symbol = t.market.replace("KRW-", "").toLowerCase();
-          return name.includes(q) || symbol.includes(q);
+    // 1) 전체 마켓 목록
+    const markets = await marketsKRW(); // [{market, korean_name, english_name}]
+    // 🔎 검색어가 있으면 여기서부터 필터 (속도/부하 ↓)
+    const pool = q
+      ? markets.filter(m => {
+          const name = (m.korean_name || "").toLowerCase();
+          const eng  = (m.english_name || "").toLowerCase();
+          const sym  = (m.market || "").toLowerCase();
+          return name.includes(q) || eng.includes(q) || sym.includes(q.replace("krw-",""));
         })
-      : tickers;
+      : markets.slice(0, 50); // 초보자용: 처음엔 50개만
 
-    // 🔹 5. 데이터 매핑
-    const rows = filtered.map(t => {
-      const nameKr = names[t.market] || t.market;
-      const candle = candleMap[t.market];
-      const prev = candle?.prev_closing_price || t.prev_closing_price || 0;
-      const change = ((t.trade_price - prev) / prev) * 100;
-      const warmState =
-        change > 3 ? "🔥 예열" :
-        change < -3 ? "❄️ 냉각" : "🌗 중립";
+    const codes = pool.map(m => m.market);
+
+    // 2) 티커 맵(객체) → 나중에 rows 만들 때 사용
+    const tickerMap = await getTickerFast(codes); // { "KRW-BTC": { ... } }
+    const tickersArr = Object.values(tickerMap);  // 배열형도 같이 제공
+
+    // 3) 각 심볼 1분봉 (최근값만 필요하면 upbit_private에서 최신 한 개만 가져오게 구현)
+    const candles = await Promise.all(codes.map(async (c) => {
+      try{
+        const arr = await getCandles1mFast(c, 6); // 최신 6개(평균/변동률 계산용)
+        return { market: c, list: arr };
+      }catch{ return { market: c, list: [] }; }
+    }));
+    const lastCloseMap = Object.fromEntries(candles.map(({market, list}) => {
+      const prev = list?.at(-2)?.close ?? tickerMap[market]?.prev_closing_price ?? 0;
+      return [market, prev];
+    }));
+
+    // 4) rows 구성
+    const rows = pool.map(m => {
+      const tk = tickerMap[m.market]; if (!tk) return null;
+      const now = roundTick(safeNum(tk.trade_price));
+      const prev = safeNum(lastCloseMap[m.market], tk.prev_closing_price);
+      const changePct = prev ? round(((now - prev) / prev) * 100, 2) : 0;
+      const state = detectState(changePct);
 
       return {
-        symbol: t.market,
-        nameKr,
-        now: t.trade_price,
-        change: Number(change.toFixed(2)),
-        warmState,
+        symbol: m.market,
+        nameKr: m.korean_name,
+        now,
+        warmState: state,
         targets: {
           long: {
-            B1: Math.floor(t.trade_price * 0.985), // 매수1
-            TP1: Math.floor(t.trade_price * 1.015), // 매도1
-          },
+            B1: roundTick(now * 0.985),
+            TP1: roundTick(now * 1.015)
+          }
         },
+        change: changePct
       };
-    });
+    }).filter(Boolean);
 
-    // 🔹 6. 급등·급락 감지 (1분 변동률 기반)
-    const spikesUp = rows
-      .filter(r => r.change >= 5)
-      .sort((a, b) => b.change - a.change)
-      .slice(0, 5);
-    const spikesDown = rows
-      .filter(r => r.change <= -5)
-      .sort((a, b) => a.change - b.change)
-      .slice(0, 5);
+    // 5) 급등/급락 세트
+    const spikes = {
+      up: rows.filter(r => r.change >= 5).sort((a,b)=>b.change-a.change).slice(0,8),
+      down: rows.filter(r => r.change <= -5).sort((a,b)=>a.change-b.change).slice(0,8),
+    };
 
-    const spikes = { up: spikesUp, down: spikesDown };
-
-    // 🔹 7. 응답
     res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
-    res.end(
-      JSON.stringify({
-        ok: true,
-        updatedAt: new Date().toISOString(),
-        tickers: tickerMap,
-        rows,
-        spikes,
-      })
-    );
-  } catch (err) {
-    console.error("⚠️ tickers.js 오류:", err);
-    res.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
-    res.end(
-      JSON.stringify({
-        ok: false,
-        error: err.message || "알 수 없는 오류",
-      })
-    );
+    res.end(JSON.stringify({
+      ok: true,
+      updatedAt: Date.now(),
+      rows,
+      spikes,
+      tickers: tickersArr, // ✅ 프론트에서 항상 배열로 사용 가능
+    }));
+  }catch(err){
+    res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+    res.end(JSON.stringify({ ok:false, error:String(err?.message||err), rows:[], spikes:{up:[],down:[]}, tickers:[] }));
   }
 }
