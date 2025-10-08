@@ -1,4 +1,4 @@
-// /js/upbit.js — 동일출처 프록시 호출 (시세 + 호가창)
+// /js/upbit.js — 동일출처 프록시 호출 모음
 
 async function callJson(url, { retry = 2 } = {}) {
   for (let i = 0; i <= retry; i++) {
@@ -23,6 +23,18 @@ export async function getUpbitPrice(market = "KRW-BTC") {
   }
 }
 
+export async function getTickers(markets = []) {
+  const q = Array.isArray(markets) ? markets.join(",") : String(markets || "");
+  if (!q) return [];
+  try {
+    return await callJson(`/api/tickers?markets=${encodeURIComponent(q)}`);
+  } catch (e) {
+    console.error("[getTickers] 실패:", e);
+    return [];
+  }
+}
+
+// (선택) 호가창 필요 시 사용
 export async function getOrderbook(market = "KRW-BTC") {
   try {
     return await callJson(`/api/orderbook?market=${encodeURIComponent(market)}`);
