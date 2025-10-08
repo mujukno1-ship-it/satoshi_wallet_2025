@@ -1,53 +1,28 @@
-name: Deploy to Vercel (Queued)
+name: Deploy to Vercel
 
 on:
   push:
     branches: [ "main" ]
-  workflow_dispatch:
 
 concurrency:
-  group: vercel-production
-  cancel-in-progress: false
+  group: vercel-deploy-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    env:
-      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
+      - uses: actions/checkout@v4
 
       - name: Install Vercel CLI
-        run: npm i -g vercel@latest
+        run: npm i -g vercel
 
-      - name: Vercel Pull
-        run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+      - name: Pull Vercel Environment
+        run: vercel pull --yes --environment=production --token ${{ secrets.VERCEL_TOKEN }}
 
-      - name: Vercel Build
-        run: vercel build --prod --token="$VERCEL_TOKEN"
+      - name: Build Project
+        run: vercel build --prod --token ${{ secrets.VERCEL_TOKEN }}
 
-      - name: Deploy with Queue & Retry
-        shell: bash
-        run: |
-          set -eo pipefail
-          ATTEMPTS=6
-          SLEEP=300
-          for i in $(seq 1 $ATTEMPTS); do
-            echo "▶ Deploy attempt $i/$ATTEMPTS"
-            if vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN" | tee deploy.log; then
-              echo "✅ Deploy success"
-              break
-            else
-              echo "⚠️ Rate limited. Waiting ${SLEEP}s..."
-              sleep $SLEEP
-            fi
-          done
+      - name: Deploy to Vercel
+        run: vercel deploy --prebuilt --prod --token ${{ secrets.VERCEL_TOKEN }}
