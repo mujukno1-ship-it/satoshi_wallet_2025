@@ -2,8 +2,8 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>사토시의지갑 - 업비트 실시간 시세</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>사토시의지갑 - 업비트 실시간 시세 & 호가창</title>
   <style>
     body{font-family:system-ui,Pretendard,sans-serif;background:#f9fafb;color:#111;padding:24px}
     h1{color:#0ea5e9;text-align:center;margin:6px 0 4px}
@@ -17,7 +17,7 @@
   <h1>💰 사토시의지갑</h1>
   <p class="sub">업비트 실시간 시세 연결 테스트</p>
 
-  <!-- 실시간 시세 박스 (이 id들을 zz-predictor.js가 사용함) -->
+  <!-- 실시간 시세 박스 (기존 유지) -->
   <div id="upbit-price-box">
     <div class="head">
       <b>업비트 실시간 시세</b>
@@ -26,7 +26,7 @@
     <div id="zz-upbit-lines" class="list">불러오는 중...</div>
   </div>
 
-  <!-- 반드시 module 로드 -->
+  <!-- 스크립트 -->
   <script type="module" src="/zz-predictor.js"></script>
 </body>
 </html>
