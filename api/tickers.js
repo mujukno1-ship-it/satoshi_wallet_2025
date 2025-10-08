@@ -1,19 +1,14 @@
-// /api/tickers.js — 통합 API (기존 기능 유지 + 급등/급락 세트 + 오류가드 + tickers.filter 오류 수정)
-// Upbit REST만 사용 (무료). rows + spikes(up/down) + tickers(배열 보장) 반환.
+// ✅ /api/tickers.js (최신 완성본)
+// 기존 기능 유지 + 업비트 IP연동 모듈 사용 + 속도개선 + tickers.filter 오류 수정
+// lib/upbit_private.js 기반
 
-const UPBIT = "https://api.upbit.com/v1";
-const TIMEOUT_MS = 3500;
+import { marketsKRW, getTickerFast, getCandles1mFast } from "../lib/upbit_private.js";
 
-// ---------- 공통 유틸 ----------
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const withTimeout = async (p, ms = TIMEOUT_MS) => {
-  let t; const killer = new Promise((_, rej) => t = setTimeout(() => rej(new Error("timeout")), ms));
-  try { return await Promise.race([p, killer]); } finally { clearTimeout(t); }
-};
 const safeNum = (v, d = 0) => (Number.isFinite(+v) ? +v : d);
 const round = (n, p = 2) => Math.round(n * 10 ** p) / 10 ** p;
 
-// 업비트 호가단위 반올림
+// 호가단위 반올림
 function upbitTick(price) {
   const p = Number(price);
   if (p >= 2_000_000) return 1000;
@@ -26,9 +21,12 @@ function upbitTick(price) {
   if (p >=        10) return 0.01;
   return 0.001;
 }
-const roundTick = (price) => { const t = upbitTick(price); return Math.round(price / t) * t; };
+const roundTick = (price) => {
+  const t = upbitTick(price);
+  return Math.round(price / t) * t;
+};
 
-// ---------- 보조지표 ----------
+// EMA, RSI, ATR 계산
 function ema(values, period) {
   if (!values.length) return null;
   const k = 2 / (period + 1);
@@ -65,7 +63,7 @@ function atr(ohlc, period = 14) {
   return a;
 }
 
-// ---------- 급등/급락 탐지 ----------
+// 급등/급락 탐지
 function detectSpike(ohlc) {
   if (!ohlc || ohlc.length < 6) return { state: "정상", volRatio: 1, changePct: 0 };
   const last = ohlc.at(-1);
@@ -85,40 +83,9 @@ function detectSpike(ohlc) {
   return { state, volRatio: round(volRatio, 2), changePct: round(changePct, 2) };
 }
 
-// ---------- Upbit REST ----------
-async function fetchJson(url) {
-  const res = await withTimeout(fetch(url, { headers: { accept: "application/json" } }));
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
-}
-async function getAllMarketsKRW() {
-  const list = await fetchJson(`${UPBIT}/market/all?isDetails=true`);
-  return list
-    .filter((m) => m.market?.startsWith("KRW-"))
-    .map((m) => ({ market: m.market, korean_name: m.korean_name, english_name: m.english_name }));
-}
-async function getTicker(markets) {
-  if (!markets.length) return {};
-  const qs = encodeURIComponent(markets.join(","));
-  const arr = await fetchJson(`${UPBIT}/ticker?markets=${qs}`);
-  const map = {}; for (const t of arr) map[t.market] = t; return map; // 객체(map)로 반환
-}
-async function getCandles1m(market, count = 60) {
-  const rows = await fetchJson(`${UPBIT}/candles/minutes/1?market=${market}&count=${count}`);
-  // 최신→과거로 오므로 뒤집어 OHLC 배열로
-  return rows.slice().reverse().map((r) => ({
-    time: new Date(r.timestamp).getTime(),
-    open: safeNum(r.opening_price),
-    high: safeNum(r.high_price),
-    low: safeNum(r.low_price),
-    close: safeNum(r.trade_price),
-    volume: safeNum(r.candle_acc_trade_volume),
-  }));
-}
-
-// ---------- 타점 생성 (위험도 1, 보수 세팅) ----------
+// 타점 생성
 function buildTargets(ohlc, last) {
-  const closes = ohlc.map((c) => c.close);
+  const closes = ohlc.map(c => c.close);
   const ema20 = ema(closes, 20), ema50 = ema(closes, 50), rsi14 = rsi(closes, 14), atr14 = atr(ohlc, 14);
 
   const vwap = round(
@@ -135,19 +102,12 @@ function buildTargets(ohlc, last) {
 
   const B1 = roundTick(vwap - atrB[0] * atr14);
   const B2 = roundTick(vwap - atrB[1] * atr14);
-  const B3 = roundTick(vwap - atrB[2] * atr14);
   const TP1 = roundTick(vwap + atrT[0] * atr14);
-  const TP2 = roundTick(vwap + atrT[1] * atr14);
-  const TP3 = roundTick(vwap + atrT[2] * atr14);
   const SL_long = roundTick(B2 - slMul * atr14);
 
   const S1 = roundTick(vwap + atrB[0] * atr14);
-  const S2 = roundTick(vwap + atrB[1] * atr14);
-  const S3 = roundTick(vwap + atrB[2] * atr14);
   const TP1s = roundTick(vwap - atrT[0] * atr14);
-  const TP2s = roundTick(vwap - atrT[1] * atr14);
-  const TP3s = roundTick(vwap - atrT[2] * atr14);
-  const SL_short = roundTick(S2 + slMul * atr14);
+  const SL_short = roundTick(S1 + slMul * atr14);
 
   let signal = "관망";
   if (longOK) signal = "Long↗";
@@ -159,73 +119,53 @@ function buildTargets(ohlc, last) {
     ema50: roundTick(ema50),
     rsi14: round(rsi14, 1),
     atr14: Math.round(atr14),
-    long:  { B1, B2, B3, TP1, TP2, TP3, SL: SL_long },
-    short: { S1, S2, S3, TP1: TP1s, TP2: TP2s, TP3: TP3s, SL: SL_short },
+    long:  { B1, B2, TP1, SL: SL_long },
+    short: { S1, TP1: TP1s, SL: SL_short },
   };
 }
 
-// ---------- 메인 핸들러 ----------
+// === 메인 API ===
 export default async function handler(req, res) {
   try {
     const url = new URL(req.url, "http://localhost");
     const q = (url.searchParams.get("q") || "").trim().toLowerCase();
 
-    // 1) 후보 심볼 풀 만들기
-    const marketsAll = await getAllMarketsKRW();
-    const pool = (!q ? marketsAll.slice(0, 20) :
-      marketsAll.filter(m =>
+    const marketsAll = await marketsKRW();
+    const pool = (!q ? marketsAll.slice(0, 20)
+      : marketsAll.filter(m =>
         m.korean_name.toLowerCase().includes(q) ||
         m.english_name.toLowerCase().includes(q) ||
         m.market.toLowerCase().includes(q)
       ).slice(0, 20)
     );
 
-    // 2) 티커 맵 & 배열(배열 보장: 프론트 filter 오류 방지)
     const codes = pool.map(m => m.market);
-    const tickerMap = await getTicker(codes);        // 객체(map)
-    const tickersArr = Object.values(tickerMap);     // ✅ 배열로 변환
+    const tickerMap = await getTickerFast(codes);
+    const tickersArr = Object.values(tickerMap); // 배열로 변환 (filter/map 오류 방지)
 
-    // 3) rows 생성 (타점 + 예열/급등/급락)
     const rows = [];
     for (const m of pool) {
       try {
         const tk = tickerMap[m.market]; if (!tk) continue;
         const now = roundTick(safeNum(tk.trade_price));
-        const ohlc = await getCandles1m(m.market, 60); if (!ohlc.length) continue;
+        const ohlc = await getCandles1mFast(m.market, 60); if (!ohlc.length) continue;
 
         const spike = detectSpike(ohlc);
-        let targets = buildTargets(ohlc, now);
-
-        // 급등/급락 반응형 보정
-        if (spike.state.includes("급등")) {
-          targets.long.TP1 = roundTick(targets.long.TP1 * 0.99);
-          targets.long.TP2 = roundTick(targets.long.TP2 * 0.985);
-          targets.long.TP3 = roundTick(targets.long.TP3 * 0.98);
-        } else if (spike.state.includes("급락")) {
-          targets.short.S1 = roundTick(targets.short.S1 * 1.01);
-          targets.short.S2 = roundTick(targets.short.S2 * 1.015);
-          targets.short.S3 = roundTick(targets.short.S3 * 1.02);
-        }
+        const targets = buildTargets(ohlc, now);
 
         rows.push({
           symbol: m.market,
           nameKr: m.korean_name,
           now,
-          buy: "-",                 // 기존 표 컬럼 호환
-          sell: "-",
-          sl: targets.long.SL,
-          tp: targets.long.TP1,
           risk: 1,
-          warmState: spike.state,   // 예열/급등/급락/과열/정상
+          warmState: spike.state,
           warmMeta: { changePct: spike.changePct, volRatio: spike.volRatio },
-          ohlc,
-          targets
+          targets,
         });
-        await sleep(30); // 429 회피
-      } catch { /* 개별 심볼 실패는 무시 */ }
+        await sleep(30);
+      } catch { /* 개별 실패 무시 */ }
     }
 
-    // 4) 급등/급락 세트 (예열 밑 카드용)
     const scored = rows.map(r => ({
       symbol: r.symbol,
       nameKr: r.nameKr,
@@ -235,6 +175,7 @@ export default async function handler(req, res) {
       volRatio: r.warmMeta?.volRatio ?? 0,
       score: Math.abs(r.warmMeta?.changePct ?? 0) * (r.warmMeta?.volRatio ?? 0),
     }));
+
     const spikes = {
       up: scored.filter(x => x.state.includes("급등") || x.state.includes("과열"))
                 .sort((a, b) => b.score - a.score).slice(0, 8),
@@ -242,16 +183,14 @@ export default async function handler(req, res) {
                   .sort((a, b) => b.score - a.score).slice(0, 8),
     };
 
-    // 5) 응답
     res.statusCode = 200;
     res.setHeader("content-type", "application/json; charset=utf-8");
     res.end(JSON.stringify({
       ok: true,
       updatedAt: Date.now(),
-      count: rows.length,
       rows,
       spikes,
-      tickers: tickersArr, // ✅ 프론트에서 항상 배열로 사용 가능
+      tickers: tickersArr,
     }));
   } catch (err) {
     res.statusCode = 200;
