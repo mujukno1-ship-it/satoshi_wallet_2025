@@ -192,10 +192,21 @@ async function onScanPreheat() {
 // 이벤트
 searchBtn.addEventListener("click", onSearch);
 searchBox.addEventListener("keypress", (e) => { if (e.key === "Enter") onSearch(); });
+
+// 수동 갱신 버튼(있으면 연결)
 scanBtn?.addEventListener("click", onScanPreheat);
 
-// 초기: 마켓 목록만 불러오기
-loadMarkets().catch(err => {
-  console.error(err);
-  tableBody.innerHTML = `<tr><td colspan="11">업비트 마켓 목록 로드 실패</td></tr>`;
-});
+// 초기: 마켓 목록 불러오기 → 성공 시 즉시 1회 스캔 + 1분마다 자동 스캔
+loadMarkets()
+  .then(() => {
+    // 첫 화면 진입 시 1회 즉시 스캔
+    onScanPreheat();
+
+    // 🔁 자동 예열 스캔: 1분(60000ms)마다 실행
+    setInterval(onScanPreheat, 60000);
+  })
+  .catch(err => {
+    console.error(err);
+    tableBody.innerHTML = `<tr><td colspan="11">업비트 마켓 목록 로드 실패</td></tr>`;
+  });
+
