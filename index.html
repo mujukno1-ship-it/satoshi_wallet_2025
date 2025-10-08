@@ -2,33 +2,37 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>사토시의지갑 - 업비트 실시간 시세 & 호가창</title>
-  <style>
-    body{font-family:system-ui,Pretendard,sans-serif;background:#f9fafb;color:#111;padding:24px}
-    h1{color:#0ea5e9;text-align:center;margin:6px 0 4px}
-    .sub{color:#64748b;text-align:center;margin-bottom:18px}
-    #upbit-price-box{max-width:520px;margin:0 auto;padding:16px;border:1px solid #e5e7eb;border-radius:12px;background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.06)}
-    .head{display:flex;justify-content:space-between;align-items:center}
-    .list{margin-top:8px}
-  </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>💎 사토시의지갑</title>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <h1>💰 사토시의지갑</h1>
-  <p class="sub">업비트 실시간 시세 연결 테스트</p>
+  <div class="container">
+    <h1>💎 사토시의지갑</h1>
+    <p class="subtitle">AI 기반 매수·매도 타점 및 예열탐지 시스템</p>
 
-  <!-- 실시간 시세 박스 (기존 유지) -->
-  <div id="upbit-price-box">
-    <div class="head">
-      <b>업비트 실시간 시세</b>
-      <small id="zz-upbit-ts" style="color:#64748b">불러오는 중...</small>
+    <div class="search-box">
+      <input id="search" type="text" placeholder="코인명을 입력하세요 (예: 비트코인)" />
+      <button id="search-btn">검색</button>
     </div>
-    <div id="zz-upbit-lines" class="list">불러오는 중...</div>
+
+    <table id="coin-table">
+      <thead>
+        <tr>
+          <th>코인명</th>
+          <th>현재가</th>
+          <th>매수</th>
+          <th>매도</th>
+          <th>손절</th>
+          <th>익절</th>
+          <th>위험도</th>
+          <th>예열상태</th>
+          <th>쩔어의 한마디</th>
+        </tr>
+      </thead>
+      <tbody id="coin-data"></tbody>
+    </table>
   </div>
-
-  <!-- 스크립트 -->
-  <script type="module" src="/zz-predictor.js"></script>
-<script type="module" src="./js/main.js"></script>
-
+  <script type="module" src="main.js"></script>
 </body>
 </html>
