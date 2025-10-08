@@ -1,28 +1,12 @@
-import fetch from "node-fetch";
-
-export default async function handler(req, res) {
+// api/upbit.js — 업비트 실시간 시세 불러오기
+export async function getUpbitPrice(market = "KRW-BTC") {
+  const url = `https://api.upbit.com/v1/ticker?markets=${market}`;
   try {
-    const url = "https://api.upbit.com/v1/ticker/all";
-    const response = await fetch(url);
-    const data = await response.json();
-
-    const items = data
-      .filter((coin) => coin.market.startsWith("KRW-"))
-      .map((coin) => ({
-        exchange: "업비트",
-        symbol: coin.market,
-        name: coin.korean_name || coin.market.replace("KRW-", ""),
-        price: Number(coin.trade_price).toLocaleString("ko-KR"),
-        changeRate: (coin.signed_change_rate * 100).toFixed(2) + "%",
-        risk:
-          Math.abs(coin.signed_change_rate * 100) > 5
-            ? "🚨 급등"
-            : "보통",
-      }))
-      .slice(0, 30);
-
-    res.status(200).json({ ok: true, items });
-  } catch (e) {
-    res.status(500).json({ ok: false, error: String(e) });
+    const res = await fetch(url);
+    const data = await res.json();
+    return data[0].trade_price; // 현재가
+  } catch (err) {
+    console.error("❌ 업비트 시세 오류:", err);
+    return null;
   }
 }
