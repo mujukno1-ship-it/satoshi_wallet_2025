@@ -1,4 +1,20 @@
 <script>
+ <!-- 캐시 무력화 + 5초 자동 새로고침 패치 -->
+<script>
+  const REFRESH_MS = 5000;
+  const bust = () => `ts=${Date.now()}`;
+
+  async function loadUpbitTop() {
+    const resp = await fetch(`/api/upbit?${bust()}`, { cache: 'no-store' });
+    // 기존 코드 내용...
+  }
+
+  async function loadBithumbTop() {
+    const resp = await fetch(`/api/bithumb?${bust()}`, { cache: 'no-store' });
+    // 기존 코드 내용...
+  }
+</script>
+ 
   // ================= 공통 유틸 =================
   const REFRESH_MS = 5000; // 5초 권장
   let symbolsKo = null;
