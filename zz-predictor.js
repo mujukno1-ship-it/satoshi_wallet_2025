@@ -1,6 +1,6 @@
 // zze-bundle.js — 기존 화면은 그대로 두고, 기능만 추가로 끼워넣는 번들
-import { getUpbitPrice } from "./api/upbit.js";
-import { getUpbitPrice } from "/api/upbit.js";
+import { getUpbitPrice } from "/js/upbit.js";
+
 
 /* 공통 포맷터 */
 function fmtKRW(x, max=4){ return (typeof x==="number" && isFinite(x)) ? x.toLocaleString("ko-KR",{maximumFractionDigits:max}) : "불러오기 실패"; }
