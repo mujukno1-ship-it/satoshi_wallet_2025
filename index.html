@@ -1,26 +1,69 @@
 <script>
-/** ============ 공통 유틸 ============ */
-const $ = (sel, ctx=document) => ctx.querySelector(sel);
-const $$ = (sel, ctx=document) => Array.from(ctx.querySelectorAll(sel));
-let symbolsKo = {};
-async function loadKoMap() {
-  if (Object.keys(symbolsKo).length) return;
-  const r = await fetch('/symbols_ko.json');
-  symbolsKo = await r.json();
-}
-function koNameFor(key) {
-  return symbolsKo[key] || key;
-}
-function debounce(fn, ms=300) {
-  let t; return (...args)=>{clearTimeout(t); t=setTimeout(()=>fn(...args), ms);}
-}
+  // …(기존 코드들)…
 
-/** ============ 상태 ============ */
-let currentExchange = 'upbit'; // 'upbit' | 'bithumb'
-function setExchange(ex) {
-  currentExchange = ex;
-  renderTopGainers(); // 화면 전환 시 급등 리스트 재조회
-}
+  // 숫자 → "+12.34%" 같은 문자열
+  function fmtPct(n) {
+    if (!isFinite(n)) return '-';
+    const sign = n > 0 ? '+' : (n < 0 ? '' : '');
+    return sign + n.toFixed(2) + '%';
+  }
+
+  // 원화 콤마 표기
+  function fmtKRW(x) {
+    if (!isFinite(x)) return '-';
+    return Number(x).toLocaleString('ko-KR');
+  }
+
+  // 빗썸 상위 리스트 갱신
+  async function loadBithumbTop() {
+    try {
+      const resp = await fetch('/api/bithumb');
+      const json = await resp.json();
+
+      const box = document.getElementById('bithumb-top-box');   // 빗썸 리스트가 들어가는 UL/BOX 요소 id
+      const time = document.getElementById('bithumb-top-time'); // 우측 상단 시각 표시 요소 id
+      if (!box) return;
+
+      box.innerHTML = '';
+      if (!json.ok || !json.items || json.items.length === 0) {
+        box.innerHTML = '<li>-</li>';
+      } else {
+        json.items.forEach((it) => {
+          // ratePercent가 없으면 rate 사용 (둘 다 안전)
+          const pct = (isFinite(it.ratePercent) ? it.ratePercent : it.rate);
+          const name = it.name || it.symbol;
+          const line = document.createElement('li');
+          line.className = 'row';
+          line.innerHTML =
+            `<span class="name">${name}</span>` +
+            `<span class="value ${pct >= 0 ? 'up' : 'down'}">${fmtPct(pct)}</span>`;
+          box.appendChild(line);
+        });
+      }
+
+      if (time) {
+        const now = new Date();
+        const hh = now.getHours().toString().padStart(2, '0');
+        const mm = now.getMinutes().toString().padStart(2, '0');
+        const ss = now.getSeconds().toString().padStart(2, '0');
+        time.textContent = `${hh}:${mm}:${ss}`;
+      }
+    } catch (e) {
+      // 실패해도 UI 안깨지게
+      const box = document.getElementById('bithumb-top-box');
+      if (box) box.innerHTML = '<li>-</li>';
+    }
+  }
+
+  // 일정 간격 자동 갱신 (예: 10초)
+  setInterval(loadBithumbTop, 10000);
+  document.addEventListener('DOMContentLoaded', () => {
+    loadBithumbTop();
+  });
+
+  // …(기존 코드들)…
+</script>
+
 
 /** ============ 이벤트 바인딩 ============ */
 window.addEventListener('DOMContentLoaded', () => {
