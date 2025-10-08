@@ -100,7 +100,8 @@ function fmtKRW(x, max = 4) {
 })();
 
 /* ---------- 3) 시세 갱신 루프 (기존 유지 + 안정화) ---------- */
-const COINS = ["KRW-BTC", "KRW-ETH", "KRW-XRP", "KRW-DOGE"]; // 필요에 따라 이 배열만 수정
+const COINS = ["KRW-BTC", "KRW-ETH", "KRW-XRP", "KRW-DOGE"]; const COINS = ["KRW-BTC", "KRW-ETH", "KRW-XRP", "KRW-DOGE", "KRW-SHIB", "KRW-AVAX"];
+// 필요에 따라 이 배열만 수정
 async function renderUpbitBox() {
   const wrap = document.getElementById("zz-upbit-lines");
   const ts = document.getElementById("zz-upbit-ts");
