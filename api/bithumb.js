@@ -1,30 +1,30 @@
-// /api/bithumb.js
+// /api/upbit.js
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store, no-cache, max-age=0, s-maxage=0');
   res.setHeader('Access-Control-Allow-Origin', '*');
 
   try {
-    const r = await fetch('https://api.bithumb.com/public/ticker/ALL_KRW', { cache: 'no-store' });
-    if (!r.ok) throw new Error(`bithumb HTTP ${r.status}`);
-    const j = await r.json();
+    const mres = await fetch('https://api.upbit.com/v1/market/all?isDetails=false', { cache: 'no-store' });
+    if (!mres.ok) throw new Error(`upbit markets HTTP ${mres.status}`);
+    const markets = await mres.json();
+    const krw = markets.filter(m => m.market && m.market.startsWith('KRW-')).slice(0, 80);
+    const marketsParam = krw.map(m => m.market).join(',');
 
-    // j.status === '0000' 이 기본. 방어적으로 체크
-    const raw = j?.data || {};
-    const items = Object.entries(raw)
-      .filter(([k, v]) => k !== 'date' && v && v.closing_price)
-      .map(([symbol, v]) => {
-        const price = Number(v.closing_price);
-        const rate = Number(v.fluctate_rate_24H); // 24H 등락률(%)
-        return {
-          symbol,
-          name: symbol,
-          price: isFinite(price) ? price : null,
-          ratePercent: isFinite(rate) ? rate : null
-        };
-      })
-      .filter(x => x.price !== null && x.ratePercent !== null)
-      .sort((a,b)=>b.ratePercent - a.ratePercent)
-      .slice(0, 12);
+    const tres = await fetch(`https://api.upbit.com/v1/ticker?markets=${encodeURIComponent(marketsParam)}`, { cache: 'no-store' });
+    if (!tres.ok) throw new Error(`upbit ticker HTTP ${tres.status}`);
+    const tickers = await tres.json();
+
+    const nameMap = new Map(krw.map(m => [m.market, m.korean_name || m.market]));
+
+    const items = (tickers || []).map(t => ({
+      symbol: (t.market || '').replace('KRW-',''),
+      name: nameMap.get(t.market) || (t.market || '').replace('KRW-',''),
+      price: Number(t.trade_price || 0),
+      ratePercent: Number(t.signed_change_rate || 0) * 100
+    }))
+    .filter(x => isFinite(x.price))
+    .sort((a,b)=> (b.ratePercent||0) - (a.ratePercent||0))
+    .slice(0, 12);
 
     return res.status(200).json({ ok: true, items });
   } catch (e) {
