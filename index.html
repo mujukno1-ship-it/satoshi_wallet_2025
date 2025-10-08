@@ -296,5 +296,243 @@ async function loadBithumbTop(){
 async function refreshTops(){ document.getElementById('load2').style.display='inline'; await Promise.all([loadUpbitTop(),loadBithumbTop()]); document.getElementById('load2').style.display='none'; }
 refreshTops(); setInterval(refreshTops, REFRESH*1000);
 </script>
+<!-- =========================
+     Satoshi Wallet – Orderbook (Upbit / Bithumb)
+     ========================= -->
+<style>
+  .sw-ob-wrap{margin:26px 0 0 0;}
+  .sw-ob-toolbar{display:flex;gap:8px;align-items:center;margin:0 0 10px 0}
+  .sw-ob-toolbar input{flex:1;min-width:260px;height:40px;border-radius:10px;border:1px solid #334155;background:#0b1220;color:#e5e7eb;padding:0 12px}
+  .sw-ob-toolbar button{height:40px;padding:0 14px;border:1px solid #334155;border-radius:10px;background:#101a2d;color:#e5e7eb;cursor:pointer}
+  .sw-ob-toolbar .note{opacity:.7;font-size:12px}
+  .sw-ob-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .sw-ob-card{background:#0b1220;border:1px solid #1f2937;border-radius:14px;overflow:hidden}
+  .sw-ob-head{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid #1f2937}
+  .sw-ex{display:flex;align-items:center;gap:8px}
+  .sw-dot{width:8px;height:8px;border-radius:50%}
+  .sw-dot.upbit{background:#4f46e5}
+  .sw-dot.bithumb{background:#f97316}
+  .sw-ex h4{margin:0;font-size:14px;color:#e5e7eb}
+  .sw-sym{opacity:.8;font-size:12px}
+  .sw-ob-body{display:grid;grid-template-columns:1fr 1fr}
+  .sw-side{padding:10px 12px;max-height:420px;overflow:auto}
+  .sw-side::-webkit-scrollbar{height:6px;width:6px}
+  .sw-side::-webkit-scrollbar-thumb{background:#1f2937;border-radius:10px}
+  .sw-row{display:grid;grid-template-columns:90px 1fr 100px;align-items:center;gap:8px;font-size:12px;padding:2px 0}
+  .sw-price{font-variant-numeric:tabular-nums}
+  .sw-amt{opacity:.85;text-align:right}
+  .sw-bar{height:16px;border-radius:3px}
+  .sw-asks .sw-price{color:#fda4af}  /* 빨강 */
+  .sw-asks .sw-bar{background:linear-gradient(90deg,#3b0d0d,#7f1d1d)}
+  .sw-bids .sw-price{color:#93c5fd}  /* 파랑 */
+  .sw-bids .sw-bar{background:linear-gradient(90deg,#0b203f,#0b4a6f)}
+  .sw-empty{opacity:.6;text-align:center;padding:18px 0}
+  @media (max-width:980px){.sw-ob-grid{grid-template-columns:1fr}}
+</style>
+
+<div class="sw-ob-wrap">
+  <div class="sw-ob-toolbar">
+    <input id="sw-ob-input" placeholder="코인명/심볼 입력 (예: 시바이누, SHIB)" />
+    <button id="sw-ob-btn">호가창 보기</button>
+    <div class="note">서버: <code id="server-text"></code></div>
+  </div>
+
+  <div class="sw-ob-grid" id="sw-ob-grid">
+    <!-- Upbit -->
+    <section class="sw-ob-card" data-ex="upbit">
+      <div class="sw-ob-head">
+        <div class="sw-ex"><span class="sw-dot upbit"></span><h4>업비트</h4></div>
+        <div class="sw-sym" id="sw-upbit-sym">KRW-</div>
+      </div>
+      <div class="sw-ob-body">
+        <div class="sw-side sw-asks" id="sw-upbit-asks"></div>
+        <div class="sw-side sw-bids" id="sw-upbit-bids"></div>
+      </div>
+    </section>
+
+    <!-- Bithumb -->
+    <section class="sw-ob-card" data-ex="bithumb">
+      <div class="sw-ob-head">
+        <div class="sw-ex"><span class="sw-dot bithumb"></span><h4>빗썸</h4></div>
+        <div class="sw-sym" id="sw-bithumb-sym">_KRW</div>
+      </div>
+      <div class="sw-ob-body">
+        <div class="sw-side sw-asks" id="sw-bithumb-asks"></div>
+        <div class="sw-side sw-bids" id="sw-bithumb-bids"></div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+;(()=>{
+  // 현재 접속 도메인 자동 표시 (요청하신 기존 정책 유지)
+  try{ document.getElementById('server-text').textContent = location.origin; }catch(_){}
+
+  // ─────────────────────────────────────────────
+  //  심볼/한글명 해석: /public/symbols_ko.json 있으면 우선 사용
+  //  없으면 기본 매핑 + 입력값 그대로 심볼 가정
+  // ─────────────────────────────────────────────
+  const FALLBACK_MAP = {
+    "시바이누":"SHIB","시바":"SHIB","도지":"DOGE","리플":"XRP","비트코인":"BTC","이더리움":"ETH",
+    "솔라나":"SOL","폴카닷":"DOT","에이다":"ADA","퀀텀":"QTUM","스택스":"STX"
+  };
+  let NAME_MAP = {...FALLBACK_MAP};
+
+  fetch('symbols_ko.json')
+    .then(r=>r.ok?r.json():null)
+    .then(j=>{
+      if(j && typeof j==='object'){
+        // 파일 포맷이 { "KRW-SHIB": "시바이누" } 또는 { "시바이누":"SHIB" } 등 다양할 수 있음
+        // 양쪽 케이스를 모두 수용
+        const map = {};
+        for(const k in j){
+          if(k.includes('-')){ // KRW-SHIB 같은 키
+            const sym = k.split('-')[1];
+            const ko = j[k];
+            if(ko) map[ko.trim()] = sym.trim();
+          }else{
+            map[k.trim()] = (j[k]||'').toString().trim();
+          }
+        }
+        NAME_MAP = {...map, ...FALLBACK_MAP};
+      }
+    }).catch(()=>{ /* optional */ });
+
+  function resolveSymbol(input){
+    if(!input) return null;
+    const t = input.trim().toUpperCase();
+    const tko = input.trim();
+    // 한글명 → 심볼
+    if(NAME_MAP[tko]) return NAME_MAP[tko].toUpperCase();
+    // 이미 심볼로 들어온 경우
+    return t.replace(/[^A-Z0-9]/g,'');
+  }
+
+  // 포맷터
+  const nf0 = new Intl.NumberFormat('ko-KR',{maximumFractionDigits:0});
+  const nf4 = new Intl.NumberFormat('ko-KR',{maximumFractionDigits:4});
+  function fmtPrice(p){
+    if(p>=100) return nf0.format(p);
+    // 저가형(시바이누 등) 소수 4자리 표시
+    return nf4.format(p);
+  }
+  function fmtAmt(a){
+    // 수량은 소수 4~6자리 정도 자동
+    if(a>=100) return nf0.format(a);
+    return new Intl.NumberFormat('ko-KR',{maximumFractionDigits:6}).format(a);
+  }
+
+  // DOM 참조
+  const elIn  = document.getElementById('sw-ob-input');
+  const elBtn = document.getElementById('sw-ob-btn');
+
+  const upA = document.getElementById('sw-upbit-asks');
+  const upB = document.getElementById('sw-upbit-bids');
+  const upS = document.getElementById('sw-upbit-sym');
+
+  const biA = document.getElementById('sw-bithumb-asks');
+  const biB = document.getElementById('sw-bithumb-bids');
+  const biS = document.getElementById('sw-bithumb-sym');
+
+  let poller=null;
+
+  elBtn.addEventListener('click',()=>{
+    const sym = resolveSymbol(elIn.value||'시바이누'); // 기본 SHIB
+    if(!sym){ alert('코인명을 확인해주세요. (예: 시바이누 또는 SHIB)'); return; }
+    start(sym);
+  });
+  // 엔터로도 실행
+  elIn.addEventListener('keydown',e=>{
+    if(e.key==='Enter') elBtn.click();
+  });
+
+  // 초기값: 시바이누
+  start('SHIB');
+
+  function start(sym){
+    // 라벨 업데이트
+    upS.textContent = `KRW-${sym}`;
+    biS.textContent = `${sym}_KRW`;
+
+    // 기존 폴링 중지
+    if(poller) clearInterval(poller);
+
+    // 최초 즉시 호출 + 2초 폴링
+    const run = ()=>{ loadUpbit(sym); loadBithumb(sym); };
+    run();
+    poller = setInterval(run, 2000);
+  }
+
+  // ─────────────────────────────────────────────
+  //  업비트 REST (10호가)
+  //  GET https://api.upbit.com/v1/orderbook?markets=KRW-SYMBOL
+  // ─────────────────────────────────────────────
+  async function loadUpbit(sym){
+    try{
+      const r = await fetch(`https://api.upbit.com/v1/orderbook?markets=KRW-${sym}`);
+      const j = await r.json();
+      if(!Array.isArray(j) || !j.length) return renderEmpty('upbit');
+      const u = j[0].orderbook_units||[];
+      const asks = u.map(x=>({price:x.ask_price, amt:x.ask_size})).slice(0,10);
+      const bids = u.map(x=>({price:x.bid_price, amt:x.bid_size})).slice(0,10);
+      renderOB(upA, asks, 'ask');
+      renderOB(upB, bids, 'bid');
+    }catch(e){
+      renderEmpty('upbit', e);
+    }
+  }
+
+  // ─────────────────────────────────────────────
+  //  빗썸 REST (10호가)
+  //  GET https://api.bithumb.com/public/orderbook/SYMBOL_KRW?count=10
+  // ─────────────────────────────────────────────
+  async function loadBithumb(sym){
+    try{
+      const r = await fetch(`https://api.bithumb.com/public/orderbook/${sym}_KRW?count=10`);
+      const j = await r.json();
+      if(j?.status!=='0000') return renderEmpty('bithumb');
+      const d = j.data||{};
+      const asks = (d.asks||[]).map(x=>({price:+x.price, amt:+x.quantity})).slice(0,10);
+      const bids = (d.bids||[]).map(x=>({price:+x.price, amt:+x.quantity})).slice(0,10);
+      renderOB(biA, asks, 'ask');
+      renderOB(biB, bids, 'bid');
+    }catch(e){
+      renderEmpty('bithumb', e);
+    }
+  }
+
+  // 공통 렌더링
+  function renderOB(container, rows, side){
+    if(!rows?.length){ container.innerHTML = `<div class="sw-empty">데이터 없음</div>`; return; }
+    // 바 너비는 해당 사이드에서 최대 수량 기준
+    const maxAmt = Math.max(...rows.map(r=>r.amt), 1e-9);
+    let html='';
+    // 업비트/빗썸 UI처럼: 매도호가(asks)는 높은 가격부터, 매수호가(bids)는 높은 가격부터 정렬
+    if(side==='ask') rows = [...rows].sort((a,b)=>b.price-a.price);
+    if(side==='bid') rows = [...rows].sort((a,b)=>b.price-a.price);
+    for(const r of rows){
+      const w = Math.max(6, Math.round((r.amt/maxAmt)*100));
+      html += `
+        <div class="sw-row">
+          <div class="sw-price">${fmtPrice(r.price)}</div>
+          <div class="sw-bar" style="width:${w}%"></div>
+          <div class="sw-amt">${fmtAmt(r.amt)}</div>
+        </div>`;
+    }
+    container.innerHTML = html;
+  }
+
+  function renderEmpty(ex, err){
+    const targetA = ex==='upbit' ? upA : biA;
+    const targetB = ex==='upbit' ? upB : biB;
+    targetA.innerHTML = `<div class="sw-empty">호가 정보가 없습니다</div>`;
+    targetB.innerHTML = `<div class="sw-empty">호가 정보가 없습니다</div>`;
+    // 콘솔 디버깅만
+    if(err) console.debug(ex,'orderbook error:',err);
+  }
+})();
+</script>
+  
 </body>
 </html>
