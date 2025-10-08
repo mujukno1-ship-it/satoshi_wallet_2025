@@ -1,4 +1,6 @@
-// /api/upbit.js — 업비트 실시간 시세 프록시
+// /api/upbit.js — 업비트 시세 프록시 (Vercel Serverless)
+// 동일출처(/api)로 만들었기 때문에 CORS 문제 0%.
+
 export default async function handler(req, res) {
   const market = (req.query.market || "KRW-BTC").toString();
 
@@ -8,15 +10,15 @@ export default async function handler(req, res) {
       { headers: { accept: "application/json" } }
     );
     if (!r.ok) throw new Error(`UPBIT_HTTP_${r.status}`);
-    const j = await r.json();
 
-    // 필요한 값만 추출해서 반환
-    const x = j?.[0] ?? {};
+    const arr = await r.json();
+    const x = arr?.[0] ?? {};
     res.status(200).json({
-      market: market,
+      market,
       trade_price: x.trade_price ?? null,
       change: x.change ?? null,
       signed_change_rate: x.signed_change_rate ?? null,
+      acc_trade_price_24h: x.acc_trade_price_24h ?? null,
       ts: Date.now()
     });
   } catch (e) {
