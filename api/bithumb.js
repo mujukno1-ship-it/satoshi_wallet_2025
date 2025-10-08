@@ -1,32 +1,19 @@
-export const config = { runtime: 'edge' };
-
-export default async function handler(req) {
-  const headers = {
-    'Content-Type': 'application/json; charset=utf-8',
-    'Cache-Control': 'no-store, no-cache, max-age=0, s-maxage=0',
-    'Access-Control-Allow-Origin': '*',
-  };
-
+export default async function handler(req, res) {
   try {
-    const r = await fetch('https://api.bithumb.com/public/ticker/ALL_KRW', { cache: 'no-store' });
-    const j = await r.json();
-    if (j?.status !== '0000' || !j?.data) {
-      return new Response(JSON.stringify({ ok:false, items:[] }), { headers });
-    }
+    const response = await fetch("https://api.bithumb.com/public/ticker/ALL_KRW");
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-    const items = Object.entries(j.data)
-      .filter(([k,v]) => k !== 'date' && v && v.closing_price)
-      .map(([symbol, v]) => ({
+    const data = await response.json();
+    const items = Object.entries(data.data)
+      .filter(([symbol]) => !symbol.includes("date"))
+      .slice(0, 10)
+      .map(([symbol, info]) => ({
         symbol,
-        name: symbol,
-        price: Number(v.closing_price),
-        ratePercent: Number(v.fluctate_rate_24H)
-      }))
-      .sort((a,b) => b.ratePercent - a.ratePercent)
-      .slice(0, 12);
+        price: parseFloat(info.closing_price),
+      }));
 
-    return new Response(JSON.stringify({ ok: true, items }), { headers });
+    res.status(200).json({ ok: true, items });
   } catch (e) {
-    return new Response(JSON.stringify({ ok:false, items:[], error:String(e) }), { headers });
+    res.status(500).json({ error: e.message });
   }
 }
