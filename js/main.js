@@ -195,6 +195,22 @@ searchBox.addEventListener("keypress", (e) => { if (e.key === "Enter") onSearch(
 
 // 수동 갱신 버튼(있으면 연결)
 scanBtn?.addEventListener("click", onScanPreheat);
+// 수동 갱신 버튼 (있으면 연결)
+if (scanBtn) {
+  scanBtn.textContent = "예열 스캔";  // (+8%) 문구 제거
+  scanBtn.addEventListener("click", onScanPreheat);
+}
+
+// 초기: 마켓 목록 불러오기 → 성공 시 즉시 1회 스캔 + 1분마다 자동 스캔
+loadMarkets()
+  .then(() => {
+    onScanPreheat(); // 첫 스캔
+    setInterval(onScanPreheat, 60000); // 자동 스캔 (1분마다)
+  })
+  .catch(err => {
+    console.error(err);
+    tableBody.innerHTML = `<tr><td colspan="11">업비트 마켓 목록 로드 실패</td></tr>`;
+  });
 
 // 초기: 마켓 목록 불러오기 → 성공 시 즉시 1회 스캔 + 1분마다 자동 스캔
 loadMarkets()
