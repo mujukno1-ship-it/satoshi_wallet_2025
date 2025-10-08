@@ -1,4 +1,4 @@
-// /api/tickers.js — 업비트 시세 데이터 프록시
+// /api/tickers.js — 업비트 시세 데이터 프록시(분할 호출)
 export default async function handler(req, res) {
   try {
     const q = String(req.query.markets || "").trim();
@@ -11,12 +11,11 @@ export default async function handler(req, res) {
 
     let out = [];
     for (const part of chunks) {
-      const url = "https://api.upbit.com/v1/ticker?markets=" +
-                  encodeURIComponent(part.join(","));
+      const url = "https://api.upbit.com/v1/ticker?markets=" + encodeURIComponent(part.join(","));
       const r = await fetch(url);
       if (!r.ok) continue;
       out = out.concat(await r.json());
-      await new Promise(r => setTimeout(r, 50)); // 호출 속도 완화
+      await new Promise(r => setTimeout(r, 50));
     }
 
     res.setHeader("Cache-Control", "s-maxage=5, stale-while-revalidate=30");
