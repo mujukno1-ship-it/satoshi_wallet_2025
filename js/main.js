@@ -127,3 +127,4 @@ searchBox.addEventListener("keypress", (e) => {
 
 // 초기 표시
 render(COINS);
+#coin-table th, #coin-table td { white-space: nowrap; }
