@@ -1,5 +1,6 @@
 {
-  "showExchangePrefix": false,
+ "showExchangePrefix": true,
+ 
   "spikeWindowSec": 15,
   "bithumbKor": {
     "BTC": "비트코인",
