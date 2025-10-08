@@ -1,14 +1,17 @@
-export default async function handler(req, res) {
-  // CORS/캐시 끔
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Cache-Control', 'no-store, no-cache, max-age=0, s-maxage=0');
+export const config = { runtime: 'edge' };
+
+export default async function handler(req) {
+  const headers = {
+    'Content-Type': 'application/json; charset=utf-8',
+    'Cache-Control': 'no-store, no-cache, max-age=0, s-maxage=0',
+    'Access-Control-Allow-Origin': '*',
+  };
 
   try {
     const r = await fetch('https://api.bithumb.com/public/ticker/ALL_KRW', { cache: 'no-store' });
     const j = await r.json();
     if (j?.status !== '0000' || !j?.data) {
-      res.status(200).json({ ok:false, items:[] });
-      return;
+      return new Response(JSON.stringify({ ok:false, items:[] }), { headers });
     }
 
     const items = Object.entries(j.data)
@@ -17,13 +20,13 @@ export default async function handler(req, res) {
         symbol,
         name: symbol,
         price: Number(v.closing_price),
-        ratePercent: Number(v.fluctate_rate_24H) // 문자열 → 숫자
+        ratePercent: Number(v.fluctate_rate_24H)
       }))
       .sort((a,b) => b.ratePercent - a.ratePercent)
       .slice(0, 12);
 
-    res.status(200).json({ ok: true, items });
+    return new Response(JSON.stringify({ ok: true, items }), { headers });
   } catch (e) {
-    res.status(200).json({ ok:false, items:[], error:String(e) });
+    return new Response(JSON.stringify({ ok:false, items:[], error:String(e) }), { headers });
   }
 }
