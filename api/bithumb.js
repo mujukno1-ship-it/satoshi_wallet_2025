@@ -1,52 +1,55 @@
-// api/bithumb.js (CommonJS 버전)
-// - 절대 500을 내지 않도록 방어 (에러여도 200으로 JSON 반환)
-// - Node 18 서버리스에서 global fetch 사용
-
+// api/bithumb.js
+// 안정 버전 — 500 안 나고 JSON으로 항상 응답
 module.exports = async (req, res) => {
   try {
-    const controller = new AbortController();
-    const to = setTimeout(() => controller.abort(), 7000); // 7초 타임아웃
-
     const url = "https://api.bithumb.com/public/ticker/ALL_KRW";
-    const r = await fetch(url, {
+    const response = await fetch(url, {
       method: "GET",
       headers: {
-        "User-Agent": "Mozilla/5.0 (compatible; SatoshiWallet/9.3)",
-        "Accept": "application/json"
+        "User-Agent": "Mozilla/5.0 (compatible; SatoshiWallet/9.3)"
       },
-      signal: controller.signal,
     });
-    clearTimeout(to);
 
-    if (!r.ok) {
-      return res.status(200).json({ ok: false, error: `HTTP ${r.status}` });
-    }
-
-    const data = await r.json();
-    if (data.status !== "0000" || !data.data) {
-      return res.status(200).json({ ok: false, error: `Bithumb status ${data.status}` });
-    }
-
-    const items = Object.entries(data.data)
-      .filter(([symbol]) => symbol !== "date")
-      .map(([symbol, v]) => {
-        const safe = v || {};
-        return {
-          exchange: "빗썸",
-          symbol: `KRW-${symbol}`,
-          name: symbol,
-          price: Number(safe.closing_price ?? NaN),
-          high: Number(safe.max_price ?? NaN),
-          low: Number(safe.min_price ?? NaN),
-          bid1: Number(safe.buy_price ?? NaN),
-          ask1: Number(safe.sell_price ?? NaN),
-          changePct: Number(safe.fluctate_rate_24H ?? NaN),
-        };
+    if (!response.ok) {
+      return res.status(200).json({
+        ok: false,
+        error: `HTTP ${response.status}`,
       });
+    }
 
-    return res.status(200).json({ ok: true, exchange: "빗썸", items });
+    const data = await response.json();
+    if (data.status !== "0000" || !data.data) {
+      return res.status(200).json({
+        ok: false,
+        error: `Invalid data from Bithumb`,
+      });
+    }
+
+    // 변환
+    const items = Object.entries(data.data)
+      .filter(([key]) => key !== "date")
+      .map(([key, v]) => ({
+        exchange: "빗썸",
+        symbol: `KRW-${key}`,
+        name: key,
+        price: Number(v.closing_price || 0),
+        high: Number(v.max_price || 0),
+        low: Number(v.min_price || 0),
+        bid1: Number(v.buy_price || 0),
+        ask1: Number(v.sell_price || 0),
+        changePct: Number(v.fluctate_rate_24H || 0),
+      }));
+
+    return res.status(200).json({
+      ok: true,
+      exchange: "빗썸",
+      items,
+    });
   } catch (e) {
-    // 500 대신 200으로 에러 메시지 전달 → Vercel 500 페이지 방지
-    return res.status(200).json({ ok: false, error: String(e && e.message || e) });
+    // 에러여도 절대 500을 내지 않게 한다
+    return res.status(200).json({
+      ok: false,
+      error: e.message || String(e),
+    });
   }
 };
