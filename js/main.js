@@ -175,10 +175,33 @@ async function onScanPreheat() {
 
   tableBody.innerHTML = "";
 
-  if (!hot.length) {
-    tableBody.innerHTML = `<tr><td colspan="11">현재 예열에 해당하는 (+8%↑) 코인이 없습니다.</td></tr>`;
+ if (!hot.length) {
+  // 기준 미충족 시: 최근 변동률 상위 10개를 참고용으로 표시
+  const top = [...allTickers]
+    .sort((a, b) => (b.signed_change_rate || 0) - (a.signed_change_rate || 0))
+    .slice(0, 10);
+
+  tableBody.innerHTML = "";
+
+  if (!top.length) {
+    tableBody.innerHTML = `<tr><td colspan="11">표시할 코인이 없습니다.</td></tr>`;
     return;
   }
+
+  for (const t of top) {
+    const korean = (MARKETS.find(m => m.market === t.market) || {}).korean_name
+                  || t.market.replace("KRW-","");
+    const price = t.trade_price;
+    const analysis = analyze(price); // 내부 분석으로 타점/위험도/예열시간 생성
+    renderRow({
+      name: `${korean} (변동 ${(t.signed_change_rate*100).toFixed(2)}%)`,
+      price,
+      analysis
+    });
+  }
+  return;
+}
+
 
   // 표시
   for (const t of hot) {
