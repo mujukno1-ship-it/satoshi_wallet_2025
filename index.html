@@ -68,6 +68,166 @@
 </div>
 
 <script>
+ <script>
+/* ===========================
+   Satoshi Wallet – Exchange Fix Pack
+   - 기존 기능 유지
+   - 빗썸 한글명 자동 치환
+   - 매수1/매수2 거래소별 정확 표시
+   =========================== */
+
+const state = {
+  exchange: 'upbit',     // 'upbit' | 'bithumb'
+  symbol: 'KRW-SHIB'     // 기본값: 시바이누 (포맷은 업비트식)
+};
+
+// 안전한 엘리먼트 가져오기
+function $(sel){ return document.querySelector(sel); }
+function setText(el, v){ if(el) el.textContent = v; }
+
+// 숫자 포맷
+function fmt(n){
+  const x = Number(n);
+  if (!isFinite(x)) return '-';
+  return x >= 100 ? x.toLocaleString() : x.toFixed(3);
+}
+
+// 심볼 한글 매핑
+let SYMBOLS_KO = { upbit:{}, bithumb:{} };
+fetch('/symbols_ko.json')
+  .then(r=>r.json())
+  .then(j=>SYMBOLS_KO=j)
+  .catch(()=>{ /* 파일 없어도 동작 계속 */ });
+
+function koName(exchange, raw){
+  // KRW-BTC, BTC_KRW 등 → 'BTC'
+  const s = raw.replace(/^KRW-/, '').replace(/_KRW$/, '');
+  return (SYMBOLS_KO[exchange]||{})[s] || s;
+}
+
+// 거래소별 심볼 포맷 변환 (API용)
+function toApiSymbol(symbol, exchange){
+  if (exchange === 'upbit'){
+    // 업비트는 KRW-BTC 형태 유지
+    return symbol.startsWith('KRW-') ? symbol : `KRW-${symbol}`;
+  } else {
+    // 빗썸은 BTC_KRW 형태 사용
+    return symbol.replace(/^KRW-/, '') + '_KRW';
+  }
+}
+
+/* ---------------------------
+   주문호가(매수1/매수2) 가져오기 & 표시
+   --------------------------- */
+async function fetchOrderbook(){
+  try{
+    if (state.exchange === 'upbit'){
+      const sym = toApiSymbol(state.symbol, 'upbit'); // KRW-BTC
+      const res = await fetch(`/api/upbit/orderbook?symbol=${encodeURIComponent(sym)}`);
+      const data = await res.json();
+      const u = data?.[0]?.orderbook_units || [];
+      const b1 = u[0]?.bid_price, b2 = u[1]?.bid_price;   // 업비트: bid=매수
+      renderBids(b1, b2);
+    } else {
+      const sym = toApiSymbol(state.symbol, 'bithumb');  // BTC_KRW
+      const res = await fetch(`/api/bithumb/orderbook?symbol=${encodeURIComponent(sym)}`);
+      const json = await res.json();
+      const bids = json?.data?.bids || [];
+      const b1 = bids[0]?.price, b2 = bids[1]?.price;    // 빗썸: bids 가격 배열
+      renderBids(b1, b2);
+    }
+  }catch(e){
+    console.error('orderbook error', e);
+    renderBids(null, null);
+  }
+}
+
+function renderBids(b1, b2){
+  setText($('#bid1'), fmt(b1));
+  setText($('#bid2'), fmt(b2));
+}
+
+/* ---------------------------
+   실시간 급등 리스트 한글 치환 (선택)
+   --------------------------- */
+function applyKoNames(containerId, exchange){
+  const box = document.getElementById(containerId);
+  if (!box) return; // id 안달았으면 무시
+
+  // 심볼 텍스트 노드가 있는 곳을 전부 훑어서 치환 (영역 내)
+  box.querySelectorAll('*').forEach(el=>{
+    // 자주 보이는 패턴만 빠르게
+    if (el.childNodes && el.childNodes.length === 1 && el.childNodes[0].nodeType === 3){
+      const raw = el.textContent.trim();
+      if (raw && /^[A-Z0-9_-]{2,}$/.test(raw)){ // 대문자 심볼로 보이면
+        const ko = koName(exchange, raw);
+        if (ko !== raw) el.textContent = ko;
+      }
+    }
+  });
+}
+
+/* ---------------------------
+   검색 동작
+   - 입력값: "시바이누" / "SHIB" / "KRW-SHIB" 모두 OK
+   --------------------------- */
+function searchAndLoad(){
+  const val = ($('#search-input')?.value || '').trim();
+  if (!val) return;
+
+  // 한글로 들어오면 심볼로 역매핑(간단히 처리)
+  const dict = Object.entries({...SYMBOLS_KO.upbit, ...SYMBOLS_KO.bithumb});
+  let sym = val.toUpperCase();
+  if (!/^[A-Z0-9-_/]{2,}$/.test(val)){ // 한글이면
+    const found = dict.find(([sym, name]) => name === val);
+    if (found) sym = found[0];
+  }
+  // 업비트 기준 심볼 보정
+  if (!sym.startsWith('KRW-')) sym = `KRW-${sym}`;
+  state.symbol = sym;
+
+  fetchOrderbook();
+}
+
+/* ---------------------------
+   이벤트 바인딩
+   --------------------------- */
+function initExchangeButtons(){
+  $('#btn-upbit')?.addEventListener('click', ()=>{
+    state.exchange = 'upbit';
+    fetchOrderbook();
+    applyKoNames('toplist-upbit','upbit');    // 있으면 한글 치환
+  });
+  $('#btn-bithumb')?.addEventListener('click', ()=>{
+    state.exchange = 'bithumb';
+    fetchOrderbook();
+    applyKoNames('toplist-bithumb','bithumb');// 있으면 한글 치환
+  });
+}
+
+function initSearch(){
+  $('#search-btn')?.addEventListener('click', searchAndLoad);
+  $('#search-input')?.addEventListener('keydown', (e)=>{
+    if (e.key === 'Enter') searchAndLoad();
+  });
+}
+
+/* ---------------------------
+   초기화
+   --------------------------- */
+function refreshAll(){
+  fetchOrderbook();
+  applyKoNames('toplist-bithumb','bithumb');
+  applyKoNames('toplist-upbit','upbit');
+}
+
+document.addEventListener('DOMContentLoaded', ()=>{
+  initExchangeButtons();
+  initSearch();
+  refreshAll();
+});
+</script>
+    
 ;(()=>{
   // 서버/도메인 표기(기존 정책 유지)
   try{ document.getElementById('server-text').textContent = location.origin; }catch(_){}
