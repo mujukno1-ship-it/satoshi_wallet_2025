@@ -1,288 +1,165 @@
-<!doctype html>
-<html lang="ko">
-<head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>사토시의지갑</title>
-<style>
-  body{margin:0;background:#0a0f1a;color:#e5e7eb;font-family:system-ui,-apple-system,Segoe UI,Roboto,Apple SD Gothic Neo,Noto Sans KR}
-  .wrap{max-width:1100px;margin:24px auto;padding:0 16px}
-  header{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:12px}
-  .brand{font-weight:700;font-size:18px}
-  .muted{opacity:.7;font-size:12px}
-  .toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0 18px}
-  .toolbar input{flex:1;min-width:200px;height:40px;border-radius:10px;border:1px solid #334155;background:#0b1220;color:#e5e7eb;padding:0 12px}
-  .btn{height:40px;padding:0 14px;border:1px solid #334155;border-radius:10px;background:#101a2d;color:#e5e7eb;cursor:pointer}
-  .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-  .card{background:#0b1220;border:1px solid #1f2937;border-radius:14px;overflow:hidden}
-  .card .head{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid #1f2937}
-  .ex{display:flex;align-items:center;gap:8px}
-  .dot{width:8px;height:8px;border-radius:50%}
-  .dot.upbit{background:#4f46e5}.dot.bithumb{background:#f97316}
-  .sym{opacity:.8;font-size:12px}
-  .badge{font-size:11px;opacity:.7}
-  .ob{display:grid;grid-template-columns:1fr 1fr}
-  .side{padding:10px 12px;max-height:420px;overflow:auto}
-  .side::-webkit-scrollbar{height:6px;width:6px}
-  .side::-webkit-scrollbar-thumb{background:#1f2937;border-radius:10px}
-  .row{display:grid;grid-template-columns:90px 1fr 100px;align-items:center;gap:8px;font-size:12px;padding:2px 0}
-  .price{font-variant-numeric:tabular-nums}
-  .amt{text-align:right;opacity:.85}
-  .bar{height:16px;border-radius:3px}
-  .asks .price{color:#fda4af}.asks .bar{background:linear-gradient(90deg,#3b0d0d,#7f1d1d)}
-  .bids .price{color:#93c5fd}.bids .bar{background:linear-gradient(90deg,#0b203f,#0b4a6f)}
-  .empty{opacity:.75;text-align:center;padding:18px 0}
-  .kv{display:flex;gap:10px;margin:8px 0;font-size:14px}
-  .kv b{min-width:48px;display:inline-block;opacity:.8}
-  @media(max-width:980px){.grid{grid-template-columns:1fr}}
-  a,button{outline:none}
-</style>
-</head>
-<body>
-<div class="wrap">
-  <header>
-    <div class="brand">사토시의지갑</div>
-    <div class="muted">서버: <code id="server-text"></code></div>
-  </header>
-
-  <!-- 거래소 선택 + 검색 -->
-  <div class="toolbar">
-    <button id="btn-upbit" class="btn">업비트</button>
-    <button id="btn-bithumb" class="btn">빗썸</button>
-    <input id="search-input" placeholder="코인명/심볼 (예: 시바이누, SHIB, KRW-SHIB)"/>
-    <button id="search-btn" class="btn">검색</button>
-  </div>
-
-  <!-- 매수1/매수2 빠른 확인 -->
-  <div class="kv">
-    <div><b>매수1</b> <span id="bid1">-</span></div>
-    <div><b>매수2</b> <span id="bid2">-</span></div>
-  </div>
-
-  <!-- 10호가 비교 -->
-  <div class="grid">
-    <!-- 업비트 -->
-    <section class="card" data-ex="upbit">
-      <div class="head">
-        <div class="ex"><span class="dot upbit"></span><strong>업비트</strong></div>
-        <div class="sym"><span id="up-sym">KRW-</span> <span class="badge" id="up-badge"></span></div>
-      </div>
-      <div class="ob">
-        <div class="side asks" id="up-asks"></div>
-        <div class="side bids" id="up-bids"></div>
-      </div>
-    </section>
-
-    <!-- 빗썸 -->
-    <section class="card" data-ex="bithumb">
-      <div class="head">
-        <div class="ex"><span class="dot bithumb"></span><strong>빗썸</strong></div>
-        <div class="sym"><span id="bi-sym">_KRW</span> <span class="badge" id="bi-badge"></span></div>
-      </div>
-      <div class="ob">
-        <div class="side asks" id="bi-asks"></div>
-        <div class="side bids" id="bi-bids"></div>
-      </div>
-    </section>
-  </div>
-
-  <!-- (선택) 실시간 급등 영역이 기존에 있다면 id만 달아두면 자동 한글 치환됩니다 -->
-  <!-- <div id="toplist-upbit"> ... </div> -->
-  <!-- <div id="toplist-bithumb"> ... </div> -->
-
-</div>
-
 <script>
-const state = { exchange:'upbit', symbol:'KRW-SHIB' };
-  
-;(()=>{
-  // 서버 표시(자동)
-  try{ document.getElementById('server-text').textContent = location.origin; }catch(_){}
+/** ============ 공통 유틸 ============ */
+const $ = (sel, ctx=document) => ctx.querySelector(sel);
+const $$ = (sel, ctx=document) => Array.from(ctx.querySelectorAll(sel));
+let symbolsKo = {};
+async function loadKoMap() {
+  if (Object.keys(symbolsKo).length) return;
+  const r = await fetch('/symbols_ko.json');
+  symbolsKo = await r.json();
+}
+function koNameFor(key) {
+  return symbolsKo[key] || key;
+}
+function debounce(fn, ms=300) {
+  let t; return (...args)=>{clearTimeout(t); t=setTimeout(()=>fn(...args), ms);}
+}
 
-  // 상태
-  const state = { exchange:'upbit', symbol:'KRW-SHIB' }; // 기본 SHIB
+/** ============ 상태 ============ */
+let currentExchange = 'upbit'; // 'upbit' | 'bithumb'
+function setExchange(ex) {
+  currentExchange = ex;
+  renderTopGainers(); // 화면 전환 시 급등 리스트 재조회
+}
 
-  // 유틸
-  const $ = s=>document.querySelector(s);
-  const setText = (el, v)=>{ if(el) el.textContent = v; };
-  const nf0 = new Intl.NumberFormat('ko-KR',{maximumFractionDigits:0});
-  const nf4 = new Intl.NumberFormat('ko-KR',{maximumFractionDigits:4});
-  const nf6 = new Intl.NumberFormat('ko-KR',{maximumFractionDigits:6});
-  const fmtP = p => !isFinite(+p) ? '-' : (+p>=100 ? nf0.format(+p) : nf4.format(+p));
-  const fmtA = a => !isFinite(+a) ? '-' : (+a>=100 ? nf0.format(+a) : nf6.format(+a));
+/** ============ 이벤트 바인딩 ============ */
+window.addEventListener('DOMContentLoaded', () => {
+  // 토글 버튼 (업비트/빗썸) - 기존 버튼에 id만 달아서 연결해도 됨
+  $('#btn-upbit')?.addEventListener('click',()=>setExchange('upbit'));
+  $('#btn-bithumb')?.addEventListener('click',()=>setExchange('bithumb'));
 
-  // 한글명 매핑 (symbols_ko.json 있으면 우선, 없으면 내장 맵)
-  let KO = { upbit:{}, bithumb:{} };
-  const FALLBACK = {
-    upbit:{BTC:"비트코인",ETH:"이더리움",XRP:"리플",ADA:"에이다",DOT:"폴카닷",AVAX:"아발란체",STX:"스택스",DOGE:"도지코인",SHIB:"시바이누",SOL:"솔라나",BCH:"비트코인캐시",LTC:"라이트코인"},
-    bithumb:{MIX:"믹스",CAMP:"캠프",API3:"에이피아이쓰리",SOON:"순",SLF:"SLF",LISTA:"리스타",QTUM:"퀀텀",SOFI:"소피",KERNEL:"커널",HUMA:"휴마",BTC:"비트코인",ETH:"이더리움",XRP:"리플",SHIB:"시바이누"}
-  };
-  KO = JSON.parse(JSON.stringify(FALLBACK));
-  fetch('/symbols_ko.json',{cache:'no-store'}).then(r=>r.ok?r.json():null).then(j=>{
-    if(!j) return;
-    KO.upbit = {...FALLBACK.upbit, ...(j.upbit||{})};
-    KO.bithumb = {...FALLBACK.bithumb, ...(j.bithumb||{})};
-  }).catch(()=>{});
+  // 검색 입력 디바운스
+  const input = $('#search-input');
+  if (input) input.addEventListener('input', debounce(handleSearch, 350));
 
-  const toName = (ex, raw)=>{
-    const base = raw.replace(/^KRW-/, '').replace(/_KRW$/, '');
-    return (KO[ex]&&KO[ex][base]) || base;
-  };
-
-  // API 호출: /api 프록시 우선, 실패 시 공개 REST 폴백
-  async function fetchJson(urls){
-    for(const u of urls){
-      try{
-        const r = await fetch(u);
-        if(r.ok){ return await r.json(); }
-      }catch(_){}
-    }
-    throw new Error('all fetch failed');
-  }
-
-  // 주문호가 가져오기
-  async function loadUpbit(sym){ // KRW-XXX
-    const urls = [
-      `/api/upbit?url=${encodeURIComponent('https://api.upbit.com/v1/orderbook?markets='+sym)}`,
-      `https://api.upbit.com/v1/orderbook?markets=${sym}`
-    ];
-    const j = await fetchJson(urls);
-    const u = j?.[0]?.orderbook_units||[];
-    const asks = u.map(x=>({price:x.ask_price,amt:x.ask_size})).slice(0,10);
-    const bids = u.map(x=>({price:x.bid_price,amt:x.bid_size})).slice(0,10);
-    return {asks,bids};
-  }
-  async function loadBithumb(sym){ // XXX_KRW
-    const urls = [
-      `/api/bithumb?url=${encodeURIComponent('https://api.bithumb.com/public/orderbook/'+sym+'?count=10')}`,
-      `https://api.bithumb.com/public/orderbook/${sym}?count=10`
-    ];
-    const j = await fetchJson(urls);
-    if(j?.status!=='0000') return {asks:[],bids:[]};
-    const d=j.data||{};
-    const asks=(d.asks||[]).map(x=>({price:+x.price,amt:+x.quantity})).slice(0,10);
-    const bids=(d.bids||[]).map(x=>({price:+x.price,amt:+x.quantity})).slice(0,10);
-    return {asks,bids};
-  }
-
-  // 렌더
-  function renderOB(container, rows, side){
-    if(!rows?.length){ container.innerHTML = `<div class="empty">데이터 없음</div>`; return; }
-    const maxAmt = Math.max(...rows.map(r=>r.amt),1e-9);
-    let html='';
-    const arr = [...rows].sort((a,b)=>b.price-a.price); // 매도/매수 모두 고가→저가
-    for(const r of arr){
-      const w = Math.max(6, Math.round((r.amt/maxAmt)*100));
-      html += `<div class="row">
-        <div class="price">${fmtP(r.price)}</div>
-        <div class="bar" style="width:${w}%"></div>
-        <div class="amt">${fmtA(r.amt)}</div>
-      </div>`;
-    }
-    container.innerHTML = html;
-  }
-
-  // 전체 갱신
-  let timer=null;
-  async function refresh(symBase){ // symBase는 업비트 포맷 KRW-XXX
-    const upSym = symBase;
-    const biSym = symBase.replace(/^KRW-/, '')+'_KRW';
-
-    setText($('#up-sym'), upSym);
-    setText($('#bi-sym'), biSym);
-
-    try{
-      const up = await loadUpbit(upSym);
-      $('#up-badge').textContent = up.asks.length||up.bids.length ? '정상' : '미상장';
-      renderOB($('#up-asks'), up.asks, 'ask');
-      renderOB($('#up-bids'), up.bids, 'bid');
-
-      // 업비트 기준 매수1/2
-      const b1 = up.bids?.[0]?.price, b2 = up.bids?.[1]?.price;
-      setText($('#bid1'), fmtP(b1));
-      setText($('#bid2'), fmtP(b2));
-    }catch(e){
-      $('#up-badge').textContent='오류';
-      $('#up-asks').innerHTML = `<div class="empty">오류</div>`;
-      $('#up-bids').innerHTML = `<div class="empty">오류</div>`;
-    }
-
-    try{
-      const bi = await loadBithumb(biSym);
-      $('#bi-badge').textContent = bi.asks.length||bi.bids.length ? '정상' : '미상장';
-      renderOB($('#bi-asks'), bi.asks, 'ask');
-      renderOB($('#bi-bids'), bi.bids, 'bid');
-      // 현재 선택 거래소가 빗썸이면 매수1/2 기준을 빗썸으로 반영
-      if(state.exchange==='bithumb'){
-        const b1 = bi.bids?.[0]?.price, b2 = bi.bids?.[1]?.price;
-        setText($('#bid1'), fmtP(b1));
-        setText($('#bid2'), fmtP(b2));
-      }
-    }catch(e){
-      $('#bi-badge').textContent='오류';
-      $('#bi-asks').innerHTML = `<div class="empty">오류</div>`;
-      $('#bi-bids').innerHTML = `<div class="empty">오류</div>`;
-    }
-  }
-
-  // 급등 리스트(있다면) 한글 치환
-  function applyKo(containerId, ex){
-    const box = document.getElementById(containerId); if(!box) return;
-    box.querySelectorAll('*').forEach(el=>{
-      if(el.childNodes?.length===1 && el.firstChild.nodeType===3){
-        const raw = el.textContent.trim();
-        if(/^[A-Z0-9_-]{2,}$/.test(raw)){
-          const base = raw.replace(/^KRW-/, '').replace(/_KRW$/, '');
-          const ko = (KO[ex]||{})[base]; if(ko) el.textContent = ko;
-        }
-      }
-    });
-  }
-
-  // 이벤트
-  function doSearch(){
-    const v = ($('#search-input')?.value||'').trim();
-    if(!v) return;
-    let sym = v.toUpperCase();
-    // 한글 입력이면 역매핑(간단)
-    const dict = Object.entries({...KO.upbit,...KO.bithumb});
-    if(!/^[A-Z0-9\-_]+$/.test(sym)){
-      const f = dict.find(([k,name])=>name===v);
-      if(f) sym = k;
-    }
-    if(!sym.startsWith('KRW-')) sym = 'KRW-'+sym;
-    state.symbol = sym;
-    refresh(state.symbol);
-  }
-
-  $('#btn-upbit')?.addEventListener('click',()=>{
-    state.exchange='upbit';
-    refresh(state.symbol);
-    applyKo('toplist-upbit','upbit');
+  loadKoMap().then(()=>{
+    renderTopGainers();
   });
-  $('#btn-bithumb')?.addEventListener('click',()=>{
-    state.exchange='bithumb';
-    refresh(state.symbol);
-    applyKo('toplist-bithumb','bithumb');
-  });
-  $('#search-btn')?.addEventListener('click',doSearch);
-  $('#search-input')?.addEventListener('keydown',e=>{ if(e.key==='Enter') doSearch(); });
+});
 
-  // 초기 실행 + 2초 폴링
-  refresh(state.symbol);
-  timer = setInterval(()=>refresh(state.symbol), 2000);
+/** ============ 검색/호가 ============ */
+async function handleSearch() {
+  const kw = ($('#search-input')?.value || '').trim();
+  if (!kw) return;
 
-  // 페이지 숨김 시 폴링 절약
-  document.addEventListener('visibilitychange',()=>{
-    if(document.hidden){ clearInterval(timer); }
-    else { refresh(state.symbol); timer = setInterval(()=>refresh(state.symbol),2000); }
-  });
+  // 검색 → 호가 조회
+  // - 업비트: KRW-시바이누 형식 필요
+  // - 빗썸: 심볼(MIX 등) 필요
+  let symbolForBook;
+  if (currentExchange === 'upbit') {
+    // 예: "시바이누" 입력 → 업비트 마켓 심볼 매칭(간단 매핑/패턴)
+    // 실제로는 REST /market/all 조회해 엄정 매칭 권장
+    const guess = 'KRW-' + kw.replace(/\s/g,'').toUpperCase();
+    symbolForBook = guess;
+    await renderOrderbookUpbit(symbolForBook);
+  } else {
+    const guess = kw.replace(/\s/g,'').toUpperCase();
+    symbolForBook = guess;
+    await renderOrderbookBithumb(symbolForBook);
+  }
+}
 
-  // (선택) 급등 리스트 자동 한글 치환 시도
-  applyKo('toplist-bithumb','bithumb');
-  applyKo('toplist-upbit','upbit');
+async function renderOrderbookUpbit(market) {
+  try {
+    // CORS가 막히면 serverless 프록시로 바꾸세요 (api/upbit.js 프록시 파일 추가)
+    const r = await fetch(`https://api.upbit.com/v1/orderbook?markets=${encodeURIComponent(market)}`);
+    const j = await r.json();
+    const ob = j?.[0];
+    if (!ob || !ob.orderbook_units) throw new Error('no upbit orderbook');
 
-})();
+    const asks = ob.orderbook_units.map(u=>({ price:u.ask_price, qty:u.ask_size }));
+    const bids = ob.orderbook_units.map(u=>({ price:u.bid_price, qty:u.bid_size }));
+
+    paintOrderbook(asks, bids); // 공통 페인터
+  } catch(e){
+    console.error(e);
+    paintOrderbook([],[]);
+  }
+}
+
+async function renderOrderbookBithumb(symbol) {
+  try {
+    // 프록시: /api/bithumb?path=orderbook&symbol=MIX
+    const r = await fetch(`/api/bithumb?path=orderbook&symbol=${encodeURIComponent(symbol)}`);
+    const j = await r.json();
+    if (!j.asks || !j.bids) throw new Error('no bithumb orderbook');
+    // 이미 표준화 되어 반환
+    paintOrderbook(j.asks, j.bids);
+  } catch(e){
+    console.error(e);
+    paintOrderbook([],[]);
+  }
+}
+
+function paintOrderbook(asks=[], bids=[]) {
+  // 매도1/매도2/매수1/매수2 같은 필드 채우기 (예시는 id를 가정)
+  const ask1 = asks[0]?.price ?? 0;
+  const ask2 = asks[1]?.price ?? 0;
+  const bid1 = bids[0]?.price ?? 0;
+  const bid2 = bids[1]?.price ?? 0;
+
+  $('#ask1') && ($('#ask1').textContent = fmt(ask1));
+  $('#ask2') && ($('#ask2').textContent = fmt(ask2));
+  $('#bid1') && ($('#bid1').textContent = fmt(bid1));
+  $('#bid2') && ($('#bid2').textContent = fmt(bid2));
+}
+
+function fmt(v) {
+  if (!v) return '-';
+  return Number(v).toLocaleString('ko-KR', { maximumFractionDigits: 6 });
+}
+
+/** ============ 실시간 급등(좌:업비트 / 우:빗썸) ============ */
+async function renderTopGainers() {
+  await loadKoMap();
+
+  // 업비트 박스
+  renderGainersUpbit();
+
+  // 빗썸 박스 (한글 노출)
+  renderGainersBithumb();
+}
+
+async function renderGainersUpbit() {
+  // 기존 구현이 있으면 그대로 쓰고, 이름만 매핑해도 됩니다.
+  // 여기서는 예시로 고정 목록을 사용 (실제는 24h 변동률 기반으로 교체 가능)
+  const box = $('#box-upbit');
+  if (!box) return;
+  const list = [
+    { symbol: 'KRW-EMC2', chg: 10.88 },
+    { symbol: 'KRW-QUANT', chg: 10.38 },
+    { symbol: 'KRW-BTC', chg: 5.30 },
+    { symbol: 'KRW-VET', chg: 4.80 },
+    { symbol: 'KRW-TON', chg: 4.57 },
+    { symbol: 'KRW-STX', chg: 3.35 },
+    { symbol: 'KRW-MNT', chg: 3.33 },
+    { symbol: 'KRW-NEO', chg: 2.94 }
+  ];
+  box.innerHTML = list.map(it => `
+    <div class="row">
+      <span class="name">${koNameFor(it.symbol)}</span>
+      <span class="chg">${it.chg > 0 ? '+' : ''}${it.chg.toFixed(2)}%</span>
+    </div>
+  `).join('');
+}
+
+async function renderGainersBithumb() {
+  const box = $('#box-bithumb');
+  if (!box) return;
+  try {
+    const r = await fetch('/api/bithumb?path=top-gainers');
+    const j = await r.json();
+    const items = j.items || [];
+
+    box.innerHTML = items.map(it => `
+      <div class="row">
+        <span class="name">${koNameFor(it.symbol)}</span>
+        <span class="chg">${it.chg > 0 ? '+' : ''}${it.chg.toFixed(2)}%</span>
+      </div>
+    `).join('');
+  } catch(e){
+    console.error(e);
+    box.innerHTML = '<div class="muted">급등 데이터를 불러오지 못했습니다.</div>';
+  }
+}
 </script>
-</body>
-</html>
