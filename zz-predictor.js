@@ -148,7 +148,6 @@ async function renderOrderbook() {
 /* ===== 초기화 ===== */
 function init() {
   renderPriceBox();
-  setInterval(renderPriceBox, 3000);
 
   renderMovers();
   setInterval(renderMovers, 5000);
