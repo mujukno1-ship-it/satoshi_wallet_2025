@@ -2,74 +2,50 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>사토시의지갑 – AI 매수·매도 타점 & 예열탐지</title>
-  <link rel="stylesheet" href="/style.css" />
-  <style>
-    body{font-family: Pretendard, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;}
-    .container{max-width:1060px;margin:40px auto;padding:0 16px}
-    h1{display:flex;align-items:center;gap:8px;color:#0ea5e9;margin:0 0 8px}
-    .subtitle{color:#6b7280;margin:0 0 20px}
-    .row{display:flex;gap:8px;align-items:center;margin-bottom:14px}
-    input[type="text"]{flex:1;height:40px;border:1px solid #e5e7eb;border-radius:8px;padding:0 12px}
-    button{height:40px;border:0;border-radius:8px;padding:0 14px;background:#2563eb;color:#fff;cursor:pointer}
-    button.secondary{background:#10b981}
-    small.muted{color:#9ca3af}
-    table{width:100%;border-collapse:collapse;background:#fff;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden}
-    thead th{background:#f9fafb;color:#374151;font-weight:600;text-align:left;padding:12px}
-    tbody td{border-top:1px solid #f3f4f6;padding:12px;color:#111827}
-    .right{text-align:right}
-    .tag{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px}
-    .tag.hot{background:#fee2e2;color:#b91c1c}
-    .tag.pre{background:#e0f2fe;color:#075985}
-    .tag.safe{background:#ecfdf5;color:#065f46}
-    .risk-1{color:#16a34a}.risk-2{color:#22c55e}.risk-3{color:#eab308}.risk-4{color:#f97316}.risk-5{color:#ef4444}
-    .toolbar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:16px 0}
-  </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>사토시의지갑 - 업비트 실시간 시세</title>
+  <link rel="stylesheet" href="/css/style.css" />
 </head>
 <body>
-  <div class="container">
-    <h1>💎 사토시의지갑</h1>
-    <p class="subtitle">AI 기반 매수·매도 타점 및 예열탐지 시스템</p>
+  <header>
+    <h1>🔥 사토시의지갑 🔥</h1>
+    <p>업비트/빗썸 실시간 급등·급락 코인 탐지 시스템</p>
+  </header>
 
-    <!-- 검색 / 스캔 툴바 -->
-    <div class="row">
-      <input id="search" type="text" placeholder="코인명을 입력하세요 (예: 비트코인 / 이더리움 / 도지)">
-      <button id="search-btn">검색</button>
-      <button id="scan-btn" class="secondary">예열 스캔(+8% 이상)</button>
-   <div id="spikeSets"></div>
-   
-    </div>
-   <div id="spikeSets"></div>
- 
-    <div class="toolbar">
-      <small id="zz-upbit-ts" class="muted">⏳ 데이터 준비중…</small>
-    </div>
+  <!-- 🔍 검색란 -->
+  <section id="search-section">
+    <input id="search" placeholder="코인명/심볼 입력 (예: 비트, BTC)" />
+    <button id="search-btn" class="primary">검색</button>
+    <button id="scan-btn" class="secondary">예열 스캔(+8%)</button>
+  </section>
 
-    <!-- 결과 테이블 -->
-    <table id="coin-table">
+  <!-- 🔥 급등/급락 한세트 -->
+  <div id="spikeSets"></div>
+
+  <!-- 📊 결과 테이블 -->
+  <section id="table-section">
+    <small id="zz-upbit-ts" class="muted">📈 데이터 준비중...</small>
+    <table id="coin-table" class="coin-table">
       <thead>
         <tr>
           <th>코인명</th>
-          <th class="right">현재가</th>
-          <th class="right">매수</th>
-          <th class="right">매도</th>
-          <th class="right">손절</th>
-          <th class="right">익절</th>
-          <th class="right">위험도</th>
-          <th>예열상태</th>
-          <th>예열 시작</th>
-          <th>예열 종료(예상)</th>
-          <th>쩔어의 한마디</th>
+          <th>현재가</th>
+          <th>매수1</th>
+          <th>매도1</th>
+          <th>상태</th>
         </tr>
       </thead>
-      <tbody id="coin-table-body">
-        <tr><td colspan="11">데이터를 불러오는 중…</td></tr>
+      <tbody id="mainTbody">
+        <tr><td colspan="5">⏳ 로딩 중...</td></tr>
       </tbody>
     </table>
-  </div>
+  </section>
 
-  <!-- 메인 스크립트 -->
-  <script type="module" src="/js/main.js"></script>
+  <!-- 오류 / 로딩 -->
+  <div id="loading" class="hidden">🔄 데이터 갱신 중...</div>
+  <div id="errorMsg" class="hidden"></div>
+
+  <!-- 🔗 main.js 연결 -->
+  <script src="/js/main.js"></script>
 </body>
 </html>
