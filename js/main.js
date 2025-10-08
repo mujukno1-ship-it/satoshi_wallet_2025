@@ -160,7 +160,8 @@ async function onScanPreheat() {
 
   const allTickers = [];
   for (const part of chunks) {
-    const r = await fetch("https://api.upbit.com/v1/ticker?markets=" + encodeURIComponent(part.join(",")));
+   const r = await fetch("/api/tickers?markets=" + encodeURIComponent(part.join(",")));
+ 
     if (!r.ok) continue;
     const data = await r.json();
     allTickers.push(...data);
