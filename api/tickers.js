@@ -65,15 +65,16 @@ function matchesQuery(m, qNorm) {
 
 // ---------- 외부 API ----------
 async function getKRWMarkets() {
-  const all = await j("https://api.upbit.com/v1/market/all?isDetails=true");
-  return all.filter((m) => (m.market || "").startsWith("KRW-"));
+  try {
+    const all = await j("https://api.upbit.com/v1/market/all?isDetails=true");
+    return all.filter((m) => (m.market || "").startsWith("KRW-"));
+  } catch (e) {
+    console.error("⚠️ Upbit Market API 오류:", e.message || e);
+    // fallback 최소값 (API 제한/오류 시에도 화면이 멈추지 않게)
+    return [{ market: "KRW-BTC", korean_name: "비트코인", english_name: "Bitcoin" }];
+  }
 }
 
-function chunk(arr, n) {
-  const out = [];
-  for (let i = 0; i < arr.length; i += n) out.push(arr.slice(i, i + n));
-  return out;
-}
 
 async function getTickers(codes) {
   if (!codes.length) return [];
