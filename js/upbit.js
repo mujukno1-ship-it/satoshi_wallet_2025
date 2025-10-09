@@ -16,12 +16,15 @@ async function callJson(url, { retry = 2 } = {}) {
 export async function getUpbitPrice(market = "KRW-BTC") {
   try {
     const j = await callJson(`/api/upbit?market=${encodeURIComponent(market)}`);
-    return typeof j?.trade_price === "number" ? j.trade_price : null;
+    // ✅ 배열/객체 모두 지원
+    const price = Array.isArray(j) ? j?.[0]?.trade_price : j?.trade_price;
+    return typeof price === "number" ? price : null;
   } catch (e) {
     console.error("[getUpbitPrice] 실패:", e);
     return null;
   }
 }
+
 
 export async function getTickers(markets = []) {
   const q = Array.isArray(markets) ? markets.join(",") : String(markets || "");
