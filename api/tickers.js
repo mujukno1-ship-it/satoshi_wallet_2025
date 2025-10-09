@@ -74,17 +74,20 @@ async function getKRWMarkets() {
     return [{ market: "KRW-BTC", korean_name: "비트코인", english_name: "Bitcoin" }];
   }
 }
-
-
 async function getTickers(codes) {
   if (!codes.length) return [];
   const chunks = chunk(codes, 100);
   const results = [];
   for (const c of chunks) {
-    const url =
-      "https://api.upbit.com/v1/ticker?markets=" + encodeURIComponent(c.join(","));
-    results.push(...(await j(url)));
-    await sleep(30);
+    try {
+      const url =
+        "https://api.upbit.com/v1/ticker?markets=" +
+        encodeURIComponent(c.join(","));
+      results.push(...(await j(url)));
+      await sleep(30);
+    } catch (e) {
+      console.error("⚠️ ticker 청크 실패:", e.message || e);
+    }
   }
   return results;
 }
@@ -94,21 +97,29 @@ async function getOrderbooks(codes) {
   const chunks = chunk(codes, 100);
   const map = {};
   for (const c of chunks) {
-    const url =
-      "https://api.upbit.com/v1/orderbook?markets=" +
-      encodeURIComponent(c.join(","));
-    const arr = await j(url);
-    for (const ob of arr) {
-      const unit = ob.orderbook_units?.[0] || {};
-      map[ob.market] = {
-        bid_price: Number(unit.bid_price) || 0,
-        ask_price: Number(unit.ask_price) || 0,
-      };
+    try {
+      const url =
+        "https://api.upbit.com/v1/orderbook?markets=" +
+        encodeURIComponent(c.join(","));
+      const arr = await j(url);
+      for (const ob of arr) {
+        const unit = ob.orderbook_units?.[0] || {};
+        map[ob.market] = {
+          bid_price: Number(unit.bid_price) || 0,
+          ask_price: Number(unit.ask_price) || 0,
+        };
+      }
+      await sleep(30);
+    } catch (e) {
+      console.error("⚠️ orderbook 청크 실패:", e.message || e);
     }
-    await sleep(30);
   }
   return map;
 }
+
+
+
+
 
 // ---------- 응답 구성 ----------
 function toRow(u, m, ob) {
