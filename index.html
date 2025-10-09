@@ -20,6 +20,31 @@
   <section id="search-section">
     <input id="searchInput" placeholder="코인명/심볼 입력 (예: 비트, BTC)" />
     <button id="searchBtn" class="primary">검색</button>
+    <!-- 🔍 검색 결과 테이블: 검색창 바로 아래 -->
+<div id="searchResult" style="margin-top:20px;">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>코인명</th>
+        <th>현재가</th>
+        <th>변동률</th>
+        <th>상태</th>
+        <th>위험도</th>
+        <th>예열시간</th>
+        <th>예열종류시간</th>
+        <th>쩔어결론</th>
+      </tr>
+    </thead>
+    <tbody id="resultBody">
+      <tr>
+        <td colspan="8" style="text-align:center;color:var(--muted);">
+          검색 결과 없음
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
     <button id="btnScanPreheat" class="secondary">예열 스캔 (+8%)</button>
   </section>
 
@@ -45,23 +70,7 @@
 
   <!-- 테이블 -->
   <section id="table-section">
-    <small id="ver-upbit-ts" class="muted">📊 데이터 준비중...</small>
-    <table id="coin-table" class="coin-table">
-      <thead>
-        <tr>
-          <th>코인명</th>
-          <th>현재가</th>
-          <th>변동률</th>
-          <th>상태</th>
-          <th>위험도</th>
-          <th>예열시간</th>
-          <th>예열종류시간</th>
-          <th>쩔어결론</th>
-        </tr>
-      </thead>
-      <tbody id="coinsTbody">
-        <tr id="loadingRow"><td colspan="8">⏳ 로딩 중...</td></tr>
-      </tbody>
+    
     </table>
   </section>
 
