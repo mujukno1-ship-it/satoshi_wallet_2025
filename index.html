@@ -344,6 +344,39 @@ import { startUpbitRealtime } from "./js/upbit_ws.js";
     el.textContent = `${code} : ${Number(price).toLocaleString()}원`;
   });
 </script>
+<!-- 실시간 감지 리스트 UI -->
+<div style="margin-top:16px">
+  <div><b>🚀 급등 코인</b>
+    <ul id="list-soaring" style="margin:6px 0 14px"></ul>
+  </div>
+  <div><b>🔥 예열 코인</b>
+    <ul id="list-warming" style="margin:6px 0 14px"></ul>
+  </div>
+  <div><b>⚡ 가열 코인</b>
+    <ul id="list-heating" style="margin:6px 0 14px"></ul>
+  </div>
+</div>
+
+<!-- 실시간 감지 연결 -->
+<script type="module">
+  import { startRealtimeDetector } from "./js/realtime_detector.js";
+
+  const elS = document.getElementById("list-soaring");
+  const elW = document.getElementById("list-warming");
+  const elH = document.getElementById("list-heating");
+
+  function paint(el, arr) {
+    el.innerHTML = (arr && arr.length)
+      ? arr.map(c => `<li>${c}</li>`).join("")
+      : "<li>스캔 대기…</li>";
+  }
+
+  startRealtimeDetector(({ soaring, warming, heating }) => {
+    paint(elS, soaring);
+    paint(elW, warming);
+    paint(elH, heating);
+  });
+</script>
 
 </body>
 </html>
