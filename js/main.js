@@ -148,7 +148,10 @@ async function load(q=""){
     window.tickers = tickers;
 
     renderSpikeSets(data.spikes); // 검색과 무관(독립)
-    renderWarmCoins(q ? (data.rows || tickers) : tickers, q ? "🔍 검색 결과" : "♨️ 예열/가열 코인");
+    // rows(가공데이터)에 1호가/타깃/위험도 등이 있으니, 우선 rows로 렌더
+const warmSource = (Array.isArray(data.rows) && data.rows.length) ? data.rows : tickers;
+renderWarmCoins(warmSource, q ? "🔍 검색 결과" : "♨️ 예열/가열 코인");
+
     renderMainTable(data.rows || []);
 
     const txt = "✅ 업데이트 완료 " + new Date(data.updatedAt || Date.now()).toLocaleTimeString();
