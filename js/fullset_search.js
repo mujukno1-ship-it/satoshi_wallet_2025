@@ -1,5 +1,6 @@
 // js/fullset_search.js
-import { getUpbitPrice } from "./upbit.js";
+import { getUpbitPrice } from "/js/upbit.js";
+
 
 // 한글명/약칭 → 심볼 매핑
 const NAME_TO_SYMBOL = {
