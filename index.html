@@ -331,6 +331,19 @@
 })();
 </script>
 <!-- ====== END: 붙여넣기 (기존코드 유지 + 기능추가/오류복구) ====== -->
+<!-- 실시간 업비트 시세 표시 -->
+<div style="margin-top:10px;font-weight:700;color:#00b894">
+  <span id="realtime-price">업비트 연결 중...</span>
+</div>
+
+<script type="module">
+import { startUpbitRealtime } from "./js/upbit_ws.js";
+
+  const el = document.getElementById("realtime-price");
+  startUpbitRealtime(({ code, price }) => {
+    el.textContent = `${code} : ${Number(price).toLocaleString()}원`;
+  });
+</script>
 
 </body>
 </html>
