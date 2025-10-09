@@ -1,12 +1,6 @@
 // js/fullset_pro.js
 (function(){
-  // 안전 헬퍼: 배열/이터러블 변환
-const toArr = (v) =>
-  Array.isArray(v)
-    ? v
-    : v && typeof v[Symbol.iterator] === "function"
-    ? Array.from(v)
-    : [];
+
 
 
   // 안전 헬퍼: 배열/이터러블 변환
@@ -22,9 +16,7 @@ const toArr = (v) =>
   const sleep = (ms) => new Promise(r=>setTimeout(r, ms));
 
   
-  const qs  = (s, r=document) => r.querySelector(s);
-  const qsa = (s, r=document) => Array.from(r.querySelectorAll(s));
-  const sleep = (ms) => new Promise(r=>setTimeout(r, ms));
+  
 
   async function api(path) {
     const res = await fetch(`/api/upbit${path}`, { headers: { Accept: 'application/json' } });
