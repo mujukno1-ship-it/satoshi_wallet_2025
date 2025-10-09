@@ -160,3 +160,53 @@ button { margin-left:4px; }
 .spike-item .sym { color:#777; }
 
 .muted { color:#999; font-size:12px; }
+/* === 검색창 확대 버전 (기존 기능 유지) === */
+#search-section {
+  max-width: 1080px;
+  margin: 0 auto 12px;
+  padding: 8px 12px;
+  text-align: center;
+}
+
+#search {
+  width: 360px;              /* ✅ 기존 200px → 360px */
+  height: 42px;              /* ✅ 세로 크기 확대 */
+  padding: 8px 14px;
+  font-size: 16px;           /* ✅ 글자 크기 확대 */
+  border: 2px solid #2b9fd8; /* ✅ 파란색 포커스 */
+  border-radius: 8px;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+#search:focus {
+  box-shadow: 0 0 8px rgba(43, 159, 216, 0.4);
+}
+
+button.primary, button.secondary {
+  height: 42px;              /* ✅ 검색창 높이에 맞춤 */
+  padding: 0 16px;
+  font-size: 15px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+button.primary {
+  background: #2b9fd8;
+  color: #fff;
+}
+
+button.primary:hover {
+  background: #2388bf;
+}
+
+button.secondary {
+  background: #f3f4f6;
+  color: #333;
+}
+
+button.secondary:hover {
+  background: #e5e7eb;
+}
