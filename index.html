@@ -74,9 +74,89 @@
 <script type="module" src="./js/main.js"></script>   <!-- 기존 기능 유지 -->
 <script src="./js/fullset_pro.js"></script>          <!-- 새: 정밀 타점 엔진 -->
 <script src="./js/fullset_search.js"></script>       <!-- 새: 검색→전체표 채움 -->
-<script type="module" src="./js/main.js"></script>
-<script src="./js/fullset_pro.js"></script>
-<script src="./js/fullset_search.js"></script>
+<script>
+/* ====== 기존 코드 유지 · 하단 패치 전용 ====== */
+(function ensureHeaders(){
+  const thead = document.querySelector('.table thead tr');
+  if (!thead) return;
+  const need = ["위험도","예열시간","예열종류시간","쩔어결론"];
+  const have = Array.from(thead.children).map(th => (th.textContent||'').trim());
+  need.forEach(lbl=>{
+    if (!have.includes(lbl)) {
+      const th = document.createElement('th');
+      th.textContent = lbl;
+      thead.appendChild(th);
+    }
+  });
+})();
+const fmt = n => Number(n||0).toLocaleString('ko-KR');
+const now = () => Date.now();
+function band(ratePct){
+  if (ratePct >= 8)  return "가열";
+  if (ratePct >= 3)  return "예열";
+  if (ratePct <= -3) return "냉각";
+  return "안정";
+}
+function risk(ratePct, spike=0){
+  const abs = Math.abs(ratePct) + Math.min(Math.abs(spike), 5);
+  if (abs < 2)  return 1;
+  if (abs < 5)  return 2;
+  if (abs < 8)  return 3;
+  if (abs < 15) return 4;
+  return 5;
+}
+const bandStart = new Map();
+const dur = (ms)=>{ const s=Math.max(0,Math.floor(ms/1000)); const m=Math.floor(s/60); const r=s%60; return (m?`${m}분 `:'')+`${r}초`; };
+async function enrichRow(tr){
+  const symCell = tr.children?.[0]; if (!symCell) return;
+  const sym = (symCell.textContent||'').trim(); if (!sym) return;
+  const market = `KRW-${sym}`;
+  function ensureCell(idx){
+    while (tr.children.length <= idx) tr.appendChild(document.createElement('td'));
+    return tr.children[idx];
+  }
+  try {
+    const res = await fetch(`/api/upbit?type=ticker&markets=${encodeURIComponent(market)}`,
+      { headers:{Accept:'application/json'} });
+    const arr = await res.json();
+    const t = Array.isArray(arr) ? arr[0] : null; if (!t) return;
+    const price = Number(t.trade_price)||0;
+    const rpct  = Number(t.signed_change_rate||0)*100;
+    const b = band(rpct);
+    const n = now();
+    const prev = bandStart.get(market);
+    if (!prev || prev.band !== b) bandStart.set(market, { band:b, ts:n });
+    const st  = bandStart.get(market);
+    const ell = st? n - st.ts : 0;
+    const r   = risk(rpct);
+    let zz = "관망";
+    if (b === "예열" && r <= 2 && rpct >= 3) zz = "단기상승(매수)";
+    if (b === "가열" && r >= 4)             zz = "익절권";
+    if (b === "냉각" && r >= 3)             zz = "진입주의";
+    // 0:코인명 1:현재가 2:매수1 3:매도1 4:상태 5:위험도 6:예열시간 7:예열종류시간 8:쩔어결론
+    ensureCell(5).textContent = r;
+    ensureCell(6).textContent = dur(ell);
+    ensureCell(7).textContent = `${b} · ${dur(ell)}`;
+    ensureCell(8).textContent = zz;
+  } catch(e){ console.warn('[patch/enrichRow]', e?.message||e); }
+}
+(function observeTable(){
+  const tbody = document.querySelector('#coinsTbody');
+  if (!tbody) return;
+  Array.from(tbody.querySelectorAll('tr')).forEach(enrichRow);
+  const ob = new MutationObserver(muts=>{
+    muts.forEach(m=>{
+      if (m.type === 'childList') {
+        m.addedNodes.forEach(node=>{
+          if (node.nodeType===1 && node.tagName==='TR') enrichRow(node);
+        });
+      }
+    });
+  });
+  ob.observe(tbody, { childList:true });
+})();
+</script>
+
 </body>
 </html>
 
