@@ -76,3 +76,8 @@
   }
   loop();
 })();
+// 값이 이터러블(배열/NodeList/Set 등)인지 체크
+const isIterable = (v) => v != null && typeof v[Symbol.iterator] === "function";
+
+// 어떤 값이 와도 "안전한 배열"로 바꿔줌
+const toArr = (v) => (Array.isArray(v) ? v : isIterable(v) ? Array.from(v) : []);
