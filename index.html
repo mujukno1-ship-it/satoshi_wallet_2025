@@ -3,73 +3,62 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>💎 사토시의지갑</title>
+  <title>사토시의지갑</title>
   <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
-
-  <!-- 💎 헤더 -->
+  <!-- 헤더 -->
   <header class="top">
     <div class="container">
       <h1 class="app-title">💎 사토시의지갑</h1>
       <p class="subtitle">AI 기반 매수·매도 타점 및 예열·급등·급락 탐지 시스템</p>
+      <small id="connStatus" class="muted">연결 준비중…</small>
     </div>
   </header>
 
-  <!-- 🔍 검색 영역 -->
+  <!-- 검색 -->
   <section id="search-section">
-    <input id="search" placeholder="코인명/심볼 입력 (예: 비트, BTC)" />
-    <button id="search-btn" class="primary">검색</button>
-    <button id="scan-btn" class="secondary">예열 스캔(+8%)</button>
+    <input id="searchInput" placeholder="코인명/심볼 입력 (예: 비트, BTC)" />
+    <button id="searchBtn" class="primary">검색</button>
+    <button id="btnScanPreheat" class="secondary">예열 스캔(+8%)</button>
   </section>
 
-  <!-- ♨️ 예열/가열 코인 -->
-  <section id="warm-section">
-    <h2>♨️ 예열/가열 코인</h2>
-    <div id="warmCoins" class="warm-grid"></div>
-  </section>
-
-  <!-- 🔥 급등/급락 한세트 -->
-  <section id="spikeSets" class="spike-wrapper">
-    <div class="spike-box">
-      <h3>🔥 급등 한세트</h3>
-      <div id="spikeUpList"></div>
+  <!-- 시그널 카드 -->
+  <section id="signal-section">
+    <div class="card">
+      <h4>🔥 급등 한세트</h4>
+      <ul id="spikeUpList"><li class="muted">스캔 대기…</li></ul>
     </div>
-    <div class="spike-box">
-      <h3>⚠️ 급락 한세트</h3>
-      <div id="spikeDownList"></div>
+    <div class="card">
+      <h4>⚠️ 급락 한세트</h4>
+      <ul id="spikeDownList"><li class="muted">스캔 대기…</li></ul>
+    </div>
+    <div class="card">
+      <h4>🧪 예열 코인</h4>
+      <ul id="preheatList"><li class="muted">스캔 대기…</li></ul>
+    </div>
+    <div class="card">
+      <h4>♨️ 가열 코인</h4>
+      <ul id="overheatList"><li class="muted">스캔 대기…</li></ul>
     </div>
   </section>
 
-  <!-- 📊 메인 테이블 -->
+  <!-- 테이블 -->
   <section id="table-section">
-    <small id="zz-upbit-ts" class="muted">📈 데이터 준비중...</small>
+    <small id="zz-upbit-ts" class="muted">📈 데이터 준비중…</small>
     <table id="coin-table" class="coin-table">
       <thead>
         <tr>
-          <th>코인명</th>
-          <th>현재가</th>
-          <th>매수1</th>
-          <th>매도1</th>
-          <th>상태</th>
+          <th>코인명</th><th>현재가</th><th>매수1</th><th>매도1</th><th>상태</th>
         </tr>
       </thead>
-      <tbody id="mainTbody">
-        <tr><td colspan="5">⏳ 로딩 중...</td></tr>
+      <tbody id="coinsTbody">
+        <tr id="loadingRow"><td colspan="5">⏳ 로딩 중...</td></tr>
       </tbody>
-  <table class="table">
-  <thead>
-    <tr>
-      <th>코인명</th>
-      <th>현재가</th>
-      <th>매수1</th>
-      <th>매도1</th>
-      <th>상태</th>
-    </tr>
-  </thead>
-<script type="module" src="./js/main.js"></script>
+    </table>
+  </section>
+
+  <!-- 반드시 한 줄만! (중복 금지) -->
+  <script type="module" src="./js/main.js"></script>
 </body>
-</html>
-  
- 
 </html>
