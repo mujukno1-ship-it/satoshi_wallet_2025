@@ -130,3 +130,33 @@ button.ghost:hover {
 .spike-item{display:flex;justify-content:space-between;padding:4px 0;font-size:13px}
 .spike-item .sym{color:#777}
 .muted{color:#999;font-size:12px}
+/* === 헤더 복원 === */
+.top .container { max-width:1080px; margin:0 auto; padding:16px 12px; }
+.app-title { margin:0; font-size:28px; font-weight:800; color:#2b9fd8; }
+.subtitle { margin:6px 0 18px; color:#6b7280; font-size:14px; }
+
+/* 검색창/예열/급등 급락 */
+#search-section { max-width:1080px; margin:0 auto 8px; padding:0 12px; text-align:center; }
+#search { width:200px; padding:5px; }
+button { margin-left:4px; }
+
+#warm-section { max-width:1080px; margin:10px auto; padding:0 12px; }
+#warm-section h2 { font-size:18px; color:#ff6600; margin-bottom:6px; }
+.warm-grid { display:flex; flex-wrap:wrap; gap:6px; font-size:13px; }
+.warm-grid div { background:#fff6e6; border:1px solid #ffd699; border-radius:6px; padding:4px 8px; }
+
+.spike-wrapper {
+  display:grid; grid-template-columns:1fr 1fr; gap:10px;
+  max-width:1080px; margin:10px auto; padding:0 12px;
+}
+@media (max-width:768px){ .spike-wrapper{grid-template-columns:1fr;} }
+
+.spike-box {
+  border:1px solid #eaeaea; border-radius:10px;
+  background:#fff; padding:10px; box-shadow:0 1px 3px rgba(0,0,0,0.05);
+}
+.spike-box h3 { margin:0 0 8px; font-size:14px; color:#333; }
+.spike-item { display:flex; justify-content:space-between; padding:3px 0; font-size:13px; }
+.spike-item .sym { color:#777; }
+
+.muted { color:#999; font-size:12px; }
