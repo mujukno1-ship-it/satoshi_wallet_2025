@@ -19,10 +19,8 @@ export default async function handler(req, res) {
       const url = `${BASE}/candles/minutes/${encodeURIComponent(
         minutes
       )}?market=${encodeURIComponent(markets)}`;
-
       const r = await fetch(url, { headers: { Accept: "application/json" } });
       const data = await r.json();
-
       res.writeHead(200, cacheHeaders);
       return res.end(JSON.stringify({ ok: true, data }));
     }
@@ -62,7 +60,6 @@ export default async function handler(req, res) {
 
     const r = await fetch(url, { headers: { Accept: "application/json" } });
     const data = await r.json();
-
     res.writeHead(200, cacheHeaders);
     return res.end(JSON.stringify({ ok: true, data }));
   } catch (e) {
