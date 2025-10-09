@@ -112,3 +112,17 @@ th, td {
     flex: 1 1 auto;
   }
 }
+/* 예열 스캔 버튼: 기능 유지, 글씨만 숨김 */
+#btnScanPreheat {
+  color: transparent !important;  /* 글자 안 보이게 */
+  position: relative;
+}
+
+#btnScanPreheat::before {
+  content: "🧪"; /* 예열 아이콘 표시 */
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 22px;
+}
