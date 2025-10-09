@@ -41,9 +41,10 @@ function renderSpikeSets(spikes){
 }
 
 // ♨️ 예열/검색 결과 — 동일 포맷(원본 호가 그대로 표시)
-function renderWarmCoins(list, label="♨️ 예열/가열 코인"){
-  const wrap=$("#warm-section"); const warm=$("#warmCoins");
-  if (!warm) return;
+function renderWarmCoins(list, label="♨️ 예열/가열 코인", targetId="warmCoins"){
+  const wrap=$("#warm-section");
+  const warm = document.querySelector(`#${targetId}`);
+
 
   const arr = asArr(list).slice(0, 10);
   const rowsHTML = arr.length ? arr.map((c)=>{
@@ -146,11 +147,30 @@ async function load(q=""){
 
     const tickers = asArr(data.tickers);
     window.tickers = tickers;
+renderSpikeSets(data.spikes); // 검색과 무관(독립)
 
-    renderSpikeSets(data.spikes); // 검색과 무관(독립)
-    // rows(가공데이터)에 1호가/타깃/위험도 등이 있으니, 우선 rows로 렌더
-const warmSource = (Array.isArray(data.rows) && data.rows.length) ? data.rows : tickers;
-renderWarmCoins(warmSource, q ? "🔍 검색 결과" : "♨️ 예열/가열 코인");
+// 검색 유무 판단 후 예열/검색 동시 표시
+const hasQuery = !!q;
+
+if (hasQuery) {
+  // 🔍 검색 결과 섹션 생성 + 표시
+  ensureSection("search-section", "🔍 검색 결과");
+  renderWarmCoins(data.rows || [], "🔍 검색 결과", "searchCoins");
+
+  // ♨️ 예열/가열 코인은 전체 기준으로 다시 불러오기
+  try {
+    const base = await fetchJSON("/api/tickers");
+    renderWarmCoins(base.rows || [], "♨️ 예열/가열 코인", "warmCoins");
+  } catch {}
+} else {
+  // 검색이 없으면 검색 섹션 삭제, 예열만 표시
+  const s = document.querySelector("#search-section");
+  if (s) s.remove();
+  const baseRows = data.rows || [];
+  renderWarmCoins(baseRows, "♨️ 예열/가열 코인", "warmCoins");
+}
+
+
 
     renderMainTable(data.rows || []);
 
