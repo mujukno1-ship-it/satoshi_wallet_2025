@@ -110,12 +110,20 @@ async function load(q = "") {
 // ===== 초기 이벤트 연결 =====
 document.addEventListener("DOMContentLoaded", () => {
   const input = $("#search");
-  const btn = $("#search-btn");
-  const scan = $("#scan-btn");
+  const btn   = $("#search-btn");
+  const scan  = $("#scan-btn");
 
-  btn.addEventListener("click", () => load(input.value.trim()));
-  input.addEventListener("keypress", (e) => {
-    if (e.key === "Enter") load(input.value.trim());
+  // ⚙️ 버튼이 있을 때만 실행되게 안전 처리
+  if (btn) btn.addEventListener("click", () => load((input?.value || "").trim()));
+
+  // ⚙️ 엔터 눌렀을 때 검색 가능
+  if (input) input.addEventListener("keypress", (e) => {
+    if (e.key === "Enter") load((input.value || "").trim());
   });
-  scan.addEventListener("click", () => load(""));
+
+  // ⚙️ 예열스캔 버튼 (전체 새로고침)
+  if (scan) scan.addEventListener("click", () => load(""));
+
+  // ⚙️ 페이지 처음 켜질 때 자동 로드
+  load("");
 });
