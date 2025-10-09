@@ -210,3 +210,12 @@ button.secondary {
 button.secondary:hover {
   background: #e5e7eb;
 }
+/* warm 테이블 보조 스타일 */
+.warm-table { width:100%; border-collapse:collapse; font-size:13px; }
+.warm-table th, .warm-table td { border-bottom:1px solid #eee; padding:6px 8px; }
+.warm-table th { background:#fafafa; text-align:center; }
+.right { text-align:right; } .center { text-align:center; }
+.spike-wrapper{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0}
+@media (max-width:768px){ .spike-wrapper{grid-template-columns:1fr} .warm-table{font-size:12px} }
+.muted{color:#777}
+.spike-item{display:flex;justify-content:space-between;padding:4px 2px}
