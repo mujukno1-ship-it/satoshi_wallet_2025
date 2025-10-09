@@ -113,3 +113,20 @@ button.ghost:hover {
 .spike-item{display:flex;justify-content:space-between;padding:4px 0;font-size:13px}
 .spike-item .coin{font-weight:600}.spike-item .sym{color:#777}.spike-item .info{color:#555;font-size:12px}
 .muted{color:#999;font-size:12px}
+/* === 헤더(기존 이미지 느낌 복원) === */
+.top .container { max-width: 1080px; margin: 0 auto; padding: 16px 12px; }
+.app-title { margin: 0; font-size: 28px; font-weight: 800; color: #2b9fd8; letter-spacing: -0.3px; }
+.subtitle { margin: 6px 0 18px; color: #6b7280; font-size: 14px; }
+
+/* 검색/툴바와 간격 조정(기존 느낌) */
+#search-section { max-width: 1080px; margin: 0 auto 8px; padding: 0 12px; }
+#table-section { max-width: 1080px; margin: 0 auto; padding: 0 12px; }
+
+/* 급등/급락 카드 간격 */
+.spike-wrapper{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:10px 0}
+@media (max-width:768px){.spike-wrapper{grid-template-columns:1fr}}
+.spike-box{border:1px solid #e8e8e8;border-radius:12px;padding:10px;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.05)}
+.spike-box h3{margin:0 0 6px;font-size:14px;font-weight:700}
+.spike-item{display:flex;justify-content:space-between;padding:4px 0;font-size:13px}
+.spike-item .sym{color:#777}
+.muted{color:#999;font-size:12px}
