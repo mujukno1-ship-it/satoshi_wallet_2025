@@ -1,3 +1,5 @@
+const $ = (sel) => document.querySelector(sel);
+
 // ===== 기본 설정 =====
 async function fetchJSON(url) {
   const res = await fetch(url);
