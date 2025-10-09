@@ -1,30 +1,72 @@
-// api/upbit.js  (Vercel Serverless Function)
+// api/upbit.js
+const BASE = "https://api.upbit.com/v1";
+
 export default async function handler(req, res) {
   try {
-    const { type = 'ticker', markets = 'KRW-BTC' } = req.query;
-    const BASE = 'https://api.upbit.com/v1';
+    const { type, markets, fn, minutes = "1" } = req.query;
 
-    let url = '';
-    if (type === 'ticker') {
+    const cacheHeaders = {
+      "Cache-Control": "s-maxage=5, stale-while-revalidate=25",
+      "Content-Type": "application/json; charset=utf-8",
+    };
+
+    // ---- 분봉 캔들 ----
+    if (fn === "candles") {
+      if (!markets) {
+        res.writeHead(400, cacheHeaders);
+        return res.end(JSON.stringify({ ok: false, error: "market(required)" }));
+      }
+      const url = `${BASE}/candles/minutes/${encodeURIComponent(
+        minutes
+      )}?market=${encodeURIComponent(markets)}`;
+
+      const r = await fetch(url, { headers: { Accept: "application/json" } });
+      const data = await r.json();
+
+      res.writeHead(200, cacheHeaders);
+      return res.end(JSON.stringify({ ok: true, data }));
+    }
+
+    // ---- 거래대금 상위 TOP ----
+    if (fn === "top") {
+      const r1 = await fetch(`${BASE}/market/all?isDetails=false`, {
+        headers: { Accept: "application/json" },
+      });
+      const all = await r1.json();
+      const krw = all.filter((x) => x.market.startsWith("KRW-"));
+
+      const list = krw.map((x) => x.market).join(",");
+      const r2 = await fetch(`${BASE}/ticker?markets=${encodeURIComponent(list)}`, {
+        headers: { Accept: "application/json" },
+      });
+      const tickers = await r2.json();
+
+      const sorted = tickers
+        .sort((a, b) => (b.acc_trade_price_24h || 0) - (a.acc_trade_price_24h || 0))
+        .slice(0, 20);
+
+      res.writeHead(200, cacheHeaders);
+      return res.end(JSON.stringify({ ok: true, data: sorted }));
+    }
+
+    // ---- 기본 ticker or markets ----
+    let url = null;
+    if (type === "ticker" && markets) {
       url = `${BASE}/ticker?markets=${encodeURIComponent(markets)}`;
-    } else if (type === 'markets' || type === 'market') {
+    } else if (type === "markets") {
       url = `${BASE}/market/all?isDetails=false`;
     } else {
-      return res.status(400).json({ error: 'Invalid type' });
+      res.writeHead(400, cacheHeaders);
+      return res.end(JSON.stringify({ ok: false, error: "Invalid query" }));
     }
 
-    const up = await fetch(url, { headers: { accept: 'application/json' } });
-    if (!up.ok) {
-      const txt = await up.text().catch(()=> '');
-      return res.status(502).json({ error: `Upbit ${up.status}`, body: txt });
-    }
+    const r = await fetch(url, { headers: { Accept: "application/json" } });
+    const data = await r.json();
 
-    const data = await up.json();
-
-    // Vercel 캐시: 빠르게, 그리고 부하 적게
-    res.setHeader('Cache-Control', 's-maxage=5, stale-while-revalidate=10');
-    return res.status(200).json(data);
-  } catch (err) {
-    return res.status(500).json({ error: err?.message || 'Upbit fetch failed' });
+    res.writeHead(200, cacheHeaders);
+    return res.end(JSON.stringify({ ok: true, data }));
+  } catch (e) {
+    res.writeHead(500, { "Content-Type": "application/json; charset=utf-8" });
+    return res.end(JSON.stringify({ ok: false, error: String(e) }));
   }
 }
