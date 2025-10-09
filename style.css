@@ -229,3 +229,8 @@ section {
 .coin-table tr:hover {
   background-color: rgba(255,255,255,0.08);
 }
+/* ✅ 쩔어결론 옆 흰 박스 제거 */
+.coin-table td:empty {
+  background: transparent !important;
+  border: none !important;
+}
