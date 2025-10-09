@@ -234,3 +234,13 @@ section {
   background: transparent !important;
   border: none !important;
 }
+/* ✅ 쩔어결론 옆 흰 박스 어두운 테마로 정리 */
+.coin-table input,
+.coin-table textarea {
+  background: rgba(255, 255, 255, 0.05) !important; /* 살짝 어둡게 */
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #ddd !important;
+  border-radius: 6px;
+  outline: none !important;
+  box-shadow: none !important;
+}
