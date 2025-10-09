@@ -1,0 +1,31 @@
+name: 🔁 Restore Upbit Backup
+
+on:
+  workflow_dispatch:  # Actions 탭에서 수동 실행 버튼
+
+permissions:
+  contents: write     # 이 저장소에 커밋/푸시 권한
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 🧰 Checkout repo
+        uses: actions/checkout@v4
+
+      - name: 🗂️ Copy backup -> live
+        run: |
+          # 백업본에서 운영 경로로 덮어쓰기
+          cp -f upbit_backup/api/upbit.js api/upbit.js
+          mkdir -p integrations/upbit
+          cp -f upbit_backup/integrations/upbit/public.js integrations/upbit/public.js
+          mkdir -p js
+          cp -f upbit_backup/js/main.js js/main.js
+
+      - name: ✅ Git commit & push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add api/upbit.js integrations/upbit/public.js js/main.js
+          git commit -m "chore: restore from upbit_backup (auto)" || echo "no changes"
+          git push
