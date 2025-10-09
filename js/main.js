@@ -2,36 +2,20 @@
 const $ = (s)=>document.querySelector(s);
 const asArr = (v)=>Array.isArray(v)?v:(v?Object.values(v):[]);
 const fmt = (n)=> (typeof n==="number" ? n.toLocaleString("ko-KR") : n);
-function tickKRW(p){
-  const x=+p;
-  if (x>=2000000) return 1000;
-  if (x>=1000000) return 500;
-  if (x>= 500000) return 100;
-  if (x>= 100000) return 50;
-  if (x>=   10000) return 10;
-  if (x>=    1000) return 1;
-  if (x>=     100) return 0.1;
-  if (x>=      10) return 0.01;
-  if (x>=       1) return 0.001;
-  return 0.0001;
-}
-const roundTick = (x)=>{ const t=tickKRW(x); return Math.round(x/t)*t; };
 
 async function fetchJSON(url){
   const r = await fetch(url, { headers:{ accept:"application/json" } });
   if(!r.ok) throw new Error(`HTTP ${r.status}`);
   return r.json();
 }
-
 let _debTimer=null;
 const debounce=(fn, wait=400)=>(...a)=>{ clearTimeout(_debTimer); _debTimer=setTimeout(()=>fn(...a), wait); };
 
 // ===== 렌더러 =====
 
-// 🔥/⚠️ 급등·급락 (객체/배열 안전 처리) + 클릭검색
+// 🔥/⚠️ 급등·급락 — 객체/배열 안전 처리 + 클릭검색
 function renderSpikeSets(spikes){
   const box=$("#spikeSets"); if(!box) return;
-
   const up = Array.isArray(spikes) ? spikes : asArr(spikes?.up);
   const down = Array.isArray(spikes) ? [] : asArr(spikes?.down);
 
@@ -47,7 +31,6 @@ function renderSpikeSets(spikes){
       <div class="spike-box"><h3>⚠️ 급락 한세트</h3>${down.length?down.map(item).join(""):`<div class="muted">없음</div>`}</div>
     </div>`;
 
-  // 클릭 → 검색 연동
   box.querySelectorAll(".spike-item[data-symbol]").forEach(el=>{
     el.addEventListener("click", ()=>{
       const sym = el.getAttribute("data-symbol");
@@ -57,7 +40,7 @@ function renderSpikeSets(spikes){
   });
 }
 
-// ♨️ 예열/검색 결과 (동일 포맷 테이블)
+// ♨️ 예열/검색 결과 — 동일 포맷(원본 호가 그대로 표시)
 function renderWarmCoins(list, label="♨️ 예열/가열 코인"){
   const wrap=$("#warm-section"); const warm=$("#warmCoins");
   if (!warm) return;
@@ -65,13 +48,14 @@ function renderWarmCoins(list, label="♨️ 예열/가열 코인"){
   const arr = asArr(list).slice(0, 10);
   const rowsHTML = arr.length ? arr.map((c)=>{
     const name = c.nameKr || c.korean_name || c.symbol || "-";
-    const sym = c.symbol || "-";
-    const now = c.now ?? c.trade_price ?? "-";
-    const bid = c.order?.bid ?? "-";
-    const ask = c.order?.ask ?? "-";
-    const b1  = c.targets?.long?.B1 ?? "-";
-    const tp1 = c.targets?.long?.TP1 ?? "-";
-    const sl  = c.targets?.long?.SL ?? (typeof b1==="number" ? roundTick(b1 - tickKRW(b1)) : "-");
+    const sym  = c.symbol || "-";
+    const now  = c.now ?? c.trade_price ?? "-";
+    // ✅ 호가: 서버에서 온 "원본 값" 그대로 사용 (반올림 X)
+    const bid  = c.order?.bid ?? "-";
+    const ask  = c.order?.ask ?? "-";
+    const b1   = c.targets?.long?.B1 ?? "-";
+    const tp1  = c.targets?.long?.TP1 ?? "-";
+    const sl   = c.targets?.long?.SL ?? "-";
     const risk = c.risk ?? 2;
     const comment = c.comment || "-";
     const st = c.warmState || "-";
@@ -96,7 +80,6 @@ function renderWarmCoins(list, label="♨️ 예열/가열 코인"){
       </tr>`;
   }).join("") : `<tr><td colspan="12" class="muted">현재 ${label.includes("검색")?"검색 결과":"예열 코인"} 없음</td></tr>`;
 
-  // 섹션 제목 스위칭
   const h2 = wrap?.querySelector("h2");
   if (h2) h2.textContent = label;
 
@@ -121,7 +104,6 @@ function renderWarmCoins(list, label="♨️ 예열/가열 코인"){
       <tbody>${rowsHTML}</tbody>
     </table>`;
 
-  // 행 클릭 → 검색 연동
   warm.querySelectorAll("tbody tr[data-symbol]").forEach(tr=>{
     tr.addEventListener("click", ()=>{
       const sym = tr.getAttribute("data-symbol");
@@ -162,12 +144,10 @@ async function load(q=""){
     const url = q ? `/api/tickers?q=${encodeURIComponent(q)}` : "/api/tickers";
     const data = await fetchJSON(url);
 
-    // tickers를 항상 배열로
     const tickers = asArr(data.tickers);
     window.tickers = tickers;
 
     renderSpikeSets(data.spikes); // 검색과 무관(독립)
-    // 검색어가 있으면 "검색 결과" 라벨로, 없으면 "예열/가열"
     renderWarmCoins(q ? (data.rows || tickers) : tickers, q ? "🔍 검색 결과" : "♨️ 예열/가열 코인");
     renderMainTable(data.rows || []);
 
@@ -194,7 +174,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
   // 기존: 예열 스캔(전체)
   scan?.addEventListener("click", ()=>{ if(input) input.value=""; load(""); });
 
-  // 초기 로드 + 자동 새로고침(과부하 방지 4초 권장)
+  // 초기 로드 + 자동 새로고침
   load();
   setInterval(()=>load(input?.value||""), 4000);
 });
