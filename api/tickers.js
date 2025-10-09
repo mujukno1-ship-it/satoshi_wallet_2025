@@ -1,3 +1,5 @@
+const $ = (sel) => document.querySelector(sel);
+
 // /api/tickers.js — 기존기능 유지 + 업비트 "원본 호가" 그대로 + 검색 + 오류가드
 const UPBIT = "https://api.upbit.com/v1";
 const TIMEOUT = 6000;
