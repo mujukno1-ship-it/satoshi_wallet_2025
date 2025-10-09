@@ -1,3 +1,4 @@
+// ✅ 업비트 데이터 가져오기 (fetchJSON)
 async function fetchJSON(url) {
   const res = await fetch(url);
   return await res.json();
@@ -5,70 +6,77 @@ async function fetchJSON(url) {
 
 // ✅ tickers 오류 수정 포함
 async function load() {
-  const data = await fetchJSON("/api/tickers");
-  const tickers = Array.isArray(data.tickers)
-    ? data.tickers
-    : Object.values(data.tickers || {});
-  window.tickers = tickers;
-  renderSpikeSets(data.spikes || {});
-  renderWarmCoins(tickers);
-  renderMainTable(data.rows || []);
-  document.getElementById("zz-upbit-ts").innerText = "📈 업데이트 완료";
+  try {
+    const data = await fetchJSON("/api/tickers");
+
+    // ✅ tickers 배열/객체 혼용 오류 방지
+    const tickers = Array.isArray(data.tickers)
+      ? data.tickers
+      : Object.values(data.tickers || {});
+    window.tickers = tickers;
+
+    // ✅ 스파이크/예열/메인테이블 렌더링
+    renderSpikeSets(data.spikes || []);
+    renderWarmCoins(tickers);
+    renderMainTable(data.rows || []);
+
+    document.getElementById("zz-upbit-ts").innerText = "✅ 업데이트 완료";
+  } catch (e) {
+    // ✅ 오류 발생 시 표가 멈추지 않게 표시
+    const tbody = document.getElementById("mainTbody");
+    if (tbody)
+      tbody.innerHTML = `<tr><td colspan="12">⚠️ 스캔 실패: ${e.message}</td></tr>`;
+    console.error("⚠️ 로딩 오류:", e);
+  }
 }
 
-// ♨️ 예열 코인 표시
+// 🔥 예열 코인 표시
 function renderWarmCoins(list) {
   const warmDiv = document.getElementById("warmCoins");
   if (!warmDiv) return;
   warmDiv.innerHTML = list
-    .slice(0, 10)
     .map(
-      (c) => `<div>${c.korean_name || c.market} (${c.trade_price?.toLocaleString()}원)</div>`
+      (c) => `
+      <div class="coin-item">
+        <span class="name">${c.namekr}</span>
+        <span class="price">${c.now}</span>
+        <span class="warn">${c.warnState}</span>
+      </div>`
     )
     .join("");
 }
 
-// 🔥 급등/급락 한세트 표시
-function renderSpikeSets(spikes) {
-  const upDiv = document.getElementById("spikeUpList");
-  const downDiv = document.getElementById("spikeDownList");
-  upDiv.innerHTML = (spikes.up || [])
-    .map((c) => `<div class="spike-item"><span>${c.symbol}</span><span>${c.change}%</span></div>`)
-    .join("") || "<div class='muted'>데이터 없음</div>";
-  downDiv.innerHTML = (spikes.down || [])
-    .map((c) => `<div class="spike-item"><span>${c.symbol}</span><span>${c.change}%</span></div>`)
-    .join("") || "<div class='muted'>데이터 없음</div>";
+// 💥 급등/급락 코인 표시
+function renderSpikeSets(list) {
+  const spikeDiv = document.getElementById("spikeSets");
+  if (!spikeDiv) return;
+  spikeDiv.innerHTML = list
+    .map(
+      (s) => `
+      <div class="spike-item">
+        <span>${s.symbol}</span> <b>${s.change}%</b>
+      </div>`
+    )
+    .join("");
 }
 
-// 📊 메인 테이블
+// 📊 메인 테이블 표시
 function renderMainTable(rows) {
   const tbody = document.getElementById("mainTbody");
+  if (!tbody) return;
   tbody.innerHTML = rows
     .map(
       (r) => `
       <tr>
-        <td>${r.nameKr || r.symbol}</td>
-        <td>${r.now?.toLocaleString() || "-"}</td>
-        <td>${r.targets?.long?.B1?.toLocaleString() || "-"}</td>
-        <td>${r.targets?.long?.TP1?.toLocaleString() || "-"}</td>
-        <td>${r.warmState || "-"}</td>
+        <td>${r.namekr}</td>
+        <td>${r.now}</td>
+        <td>${r.buy1}</td>
+        <td>${r.sell1}</td>
+        <td>${r.state}</td>
       </tr>`
     )
     .join("");
 }
 
-// 🔍 검색 기능
-document.getElementById("search-btn").addEventListener("click", () => {
-  const keyword = document.getElementById("search").value.trim().toLowerCase();
-  if (!keyword || !window.tickers) return;
-  const result = window.tickers.filter(
-    (t) =>
-      t.market.toLowerCase().includes(keyword) ||
-      (t.korean_name || "").toLowerCase().includes(keyword)
-  );
-  renderWarmCoins(result);
-});
-
-// 초기 로드 및 자동 새로고침
-load();
-setInterval(load, 4000);
+// 🚀 페이지 로드 시 자동 실행
+window.addEventListener("DOMContentLoaded", load);
