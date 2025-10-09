@@ -1,95 +1,30 @@
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>사토시의지갑</title>
-  <link rel="stylesheet" href="/style.css" />
-</head>
-<body>
-  <!-- 헤더 -->
-  <header class="top">
-    <div class="container">
-      <h1 class="app-title">💎 사토시의지갑</h1>
-      <p class="subtitle">AI 기반 매수·매도 타점 및 예열·급등·급락 탐지 시스템</p>
-      <small id="connStatus" class="muted">연결 준비중…</small>
-    </div>
-  </header>
-
-  <!-- 검색 -->
-  <section id="search-section">
-    <input id="searchInput" placeholder="코인명/심볼 입력 (예: 비트, BTC)" />
-    <button id="searchBtn" class="primary">검색</button>
-    <button id="btnScanPreheat" class="secondary">예열 스캔(+8%)</button>
-  </section>
-
-  <!-- 시그널 카드 -->
-  <section id="signal-section">
-    <div class="card">
-      <h4>🔥 급등 한세트</h4>
-      <ul id="spikeUpList"><li class="muted">스캔 대기…</li></ul>
-    </div>
-    <div class="card">
-      <h4>⚠️ 급락 한세트</h4>
-      <ul id="spikeDownList"><li class="muted">스캔 대기…</li></ul>
-    </div>
-    <div class="card">
-      <h4>🧪 예열 코인</h4>
-      <ul id="preheatList"><li class="muted">스캔 대기…</li></ul>
-    </div>
-    <div class="card">
-      <h4>♨️ 가열 코인</h4>
-      <ul id="overheatList"><li class="muted">스캔 대기…</li></ul>
-    </div>
-  </section>
-
-  <!-- 테이블 -->
-  <section id="table-section">
-    <small id="zz-upbit-ts" class="muted">📈 데이터 준비중…</small>
-    <table id="coin-table" class="coin-table">
-      <thead>
-        <tr>
-          <th>코인명</th>
-          <th>현재가</th>
-          <th>매수1</th>
-          <th>매도1</th>
-          <th>상태</th>
-        </tr>
-      </thead>
-      <tbody id="coinsTbody">
-        <tr id="loadingRow"><td colspan="5">⏳ 로딩 중...</td></tr>
-      </tbody>
-    </table>
-  </section>
-
-  <!-- 반드시 한 줄만! -->
-  <script type="module" src="./js/main.js"></script>
-  <script src="./js/fullset_pro.js"></script>
+<!-- 기존 기능 유지: 딱 1세트만! -->
+<script type="module" src="./js/main.js"></script>
+<script src="./js/fullset_pro.js"></script>
 <script src="./js/fullset_search.js"></script>
-</body>
-</html>
-<!-- 기존: 절대 건드리지 않음 (페이지 본문/표/검색창 유지) -->
 
-<!-- ▼▼ 파일 끝나기 직전, body 닫기 전에 딱 3줄만 남기기 ▼▼ -->
-<script type="module" src="./js/main.js"></script>   <!-- 기존 기능 유지 -->
-<script src="./js/fullset_pro.js"></script>          <!-- 새: 정밀 타점 엔진 -->
-<script src="./js/fullset_search.js"></script>       <!-- 새: 검색→전체표 채움 -->
+<!-- ▼ 패치: 헤더 보강 + 행 보강(위험도/예열시간/종류/쩔어결론) -->
 <script>
-/* ====== 기존 코드 유지 · 하단 패치 전용 ====== */
+/* 1) 헤더 자동 추가 (coinsTbody 기준으로 정확히 집어넣기) */
 (function ensureHeaders(){
-  const thead = document.querySelector('.table thead tr');
-  if (!thead) return;
+  const tbody   = document.getElementById('coinsTbody');
+  if (!tbody) { console.warn('[patch] coinsTbody not found'); return; }
+  const table   = tbody.closest('table');
+  const theadTr = table?.querySelector('thead tr');
+  if (!theadTr) { console.warn('[patch] thead row not found'); return; }
+
   const need = ["위험도","예열시간","예열종류시간","쩔어결론"];
-  const have = Array.from(thead.children).map(th => (th.textContent||'').trim());
+  const have = Array.from(theadTr.children).map(th => (th.textContent||'').trim());
   need.forEach(lbl=>{
     if (!have.includes(lbl)) {
       const th = document.createElement('th');
       th.textContent = lbl;
-      thead.appendChild(th);
+      theadTr.appendChild(th);
     }
   });
 })();
-const fmt = n => Number(n||0).toLocaleString('ko-KR');
+
+/* 2) 계산 유틸 */
 const now = () => Date.now();
 function band(ratePct){
   if (ratePct >= 8)  return "가열";
@@ -107,46 +42,63 @@ function risk(ratePct, spike=0){
 }
 const bandStart = new Map();
 const dur = (ms)=>{ const s=Math.max(0,Math.floor(ms/1000)); const m=Math.floor(s/60); const r=s%60; return (m?`${m}분 `:'')+`${r}초`; };
+
+/* 3) 한 행 보강(위험도/예열시간/종류/쩔어결론) */
 async function enrichRow(tr){
+  // 0:코인명 1:현재가 2:매수1 3:매도1 4:상태 5:위험도 6:예열시간 7:예열종류시간 8:쩔어결론
   const symCell = tr.children?.[0]; if (!symCell) return;
   const sym = (symCell.textContent||'').trim(); if (!sym) return;
   const market = `KRW-${sym}`;
+
   function ensureCell(idx){
     while (tr.children.length <= idx) tr.appendChild(document.createElement('td'));
     return tr.children[idx];
   }
+
   try {
     const res = await fetch(`/api/upbit?type=ticker&markets=${encodeURIComponent(market)}`,
       { headers:{Accept:'application/json'} });
     const arr = await res.json();
     const t = Array.isArray(arr) ? arr[0] : null; if (!t) return;
+
     const price = Number(t.trade_price)||0;
     const rpct  = Number(t.signed_change_rate||0)*100;
+
     const b = band(rpct);
     const n = now();
     const prev = bandStart.get(market);
     if (!prev || prev.band !== b) bandStart.set(market, { band:b, ts:n });
     const st  = bandStart.get(market);
     const ell = st? n - st.ts : 0;
+
     const r   = risk(rpct);
+
     let zz = "관망";
     if (b === "예열" && r <= 2 && rpct >= 3) zz = "단기상승(매수)";
     if (b === "가열" && r >= 4)             zz = "익절권";
     if (b === "냉각" && r >= 3)             zz = "진입주의";
-    // 0:코인명 1:현재가 2:매수1 3:매도1 4:상태 5:위험도 6:예열시간 7:예열종류시간 8:쩔어결론
-    ensureCell(5).textContent = r;
-    ensureCell(6).textContent = dur(ell);
-    ensureCell(7).textContent = `${b} · ${dur(ell)}`;
-    ensureCell(8).textContent = zz;
-  } catch(e){ console.warn('[patch/enrichRow]', e?.message||e); }
+
+    ensureCell(5).textContent = r;                 // 위험도
+    ensureCell(6).textContent = dur(ell);          // 예열시간(지속)
+    ensureCell(7).textContent = `${b} · ${dur(ell)}`; // 예열종류시간
+    ensureCell(8).textContent = zz;                // 쩔어결론
+  } catch(e){
+    console.warn('[patch/enrichRow]', e?.message||e);
+  }
 }
+
+/* 4) 표 변경 감지 → 새로 생긴 행마다 보강 */
 (function observeTable(){
   const tbody = document.querySelector('#coinsTbody');
   if (!tbody) return;
+
+  // 초기 렌더된 행들도 보강
   Array.from(tbody.querySelectorAll('tr')).forEach(enrichRow);
+
+  // 이후 추가되는 행 보강
   const ob = new MutationObserver(muts=>{
     muts.forEach(m=>{
-      if (m.type === 'childList') {
+      if (m.type==='childList') {
         m.addedNodes.forEach(node=>{
           if (node.nodeType===1 && node.tagName==='TR') enrichRow(node);
         });
@@ -156,8 +108,4 @@ async function enrichRow(tr){
   ob.observe(tbody, { childList:true });
 })();
 </script>
-
 </body>
-</html>
-
-
