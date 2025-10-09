@@ -1,195 +1,114 @@
-/** --------------------------------------------------------------
- *  js/main.js (안정 복원판)
- *  - 기존 기능 유지 (검색/표/예열/급등·급락/업데이트표시)
- *  - 검색하면 "검색결과 + 예열" 동시 표시
- *  - 네트워크/요소 누락 가드
- * -------------------------------------------------------------- */
-const $ = (sel) => document.querySelector(sel);
-const asArr = (v) => (Array.isArray(v) ? v : v ? Object.values(v) : []);
-const fmt = (n) => (typeof n === "number" ? n.toLocaleString("ko-KR") : (n ?? "-"));
+// js/main.js
+// 화면: 검색창 + 테이블 “로딩 중…” 해제 + 현재가/매수1/매도1 채우기
+import { getKRWMarkets, getTickers } from "../integrations/upbit/public.js";
 
-async function fetchJSON(url) {
-  const r = await fetch(url, { headers: { accept: "application/json" } });
-  if (!r.ok) throw new Error(`HTTP ${r.status}`);
-  return r.json();
-}
+// DOM 훅
+const $search = document.querySelector("#searchInput");
+const $btn = document.querySelector("#searchBtn");
+const $tbody = document.querySelector("#coinsTbody");
+const $loadingRow = document.querySelector("#loadingRow");
 
-/* 동적 섹션 (검색결과) : 기존 검색 UI(#search-section)는 건드리지 않음 */
-function ensureSection(id, title) {
-  let sec = document.querySelector(`#${id}`);
-  if (!sec) {
-    const warmSec = document.querySelector("#warm-section");
-    sec = document.createElement("section");
-    sec.id = id;
-    sec.innerHTML = `
-      <h2>${title}</h2>
-      <div id="${id === "search-results" ? "searchResults" : "warmCoins"}"></div>
-    `;
-    if (warmSec && warmSec.parentNode) warmSec.parentNode.insertBefore(sec, warmSec);
-  } else {
-    const h2 = sec.querySelector("h2");
-    if (h2) h2.textContent = title;
-  }
-  return sec;
-}
+let ALL_MARKETS = [];      // KRW- 전체 마켓 (KRW-BTC, KRW-ETH ...)
+let POLL_TIMER = null;     // 폴링 핸들러
+let CURRENT_VIEW = [];     // 현재 테이블에 뿌릴 마켓들
 
-/* 예열/검색 표 렌더러 (컨테이너 지정) */
-function renderWarmCoins(list, label = "♨️ 예열/가열 코인", targetId = "warmCoins") {
-  const wrap = $("#warm-section");
-  const warm = document.querySelector(`#${targetId}`);
-  if (!warm) return;
-
-  if (wrap && targetId === "warmCoins") {
-    const h2 = wrap.querySelector("h2");
-    if (h2) h2.textContent = label;
-  }
-
-  const arr = asArr(list);
-
-  const rowsHTML = arr.length
-    ? arr.map((c) => {
-        const name = c.nameKr || c.korean_name || (c.symbol || "").replace("KRW-","") || "-";
-        const now  = c.now ?? c.trade_price ?? "-";
-        const bid  = c.order?.bid ?? "-";
-        const ask  = c.order?.ask ?? "-";
-        const B1   = c.targets?.long?.B1 ?? "-";
-        const TP1  = c.targets?.long?.TP1 ?? "-";
-        const SL   = c.targets?.long?.SL ?? "-";
-        const risk = c.risk ?? 0;
-        const dots = "●●●●●".slice(0, risk) + "○○○○○".slice(risk);
-        const comment = c.comment || "-";
-        const st  = c.warmState || "-";
-        const stime = c.startTime ? new Date(c.startTime).toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"}) : "-";
-        const etime = c.endTime ? new Date(c.endTime).toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"}) : "-";
-
-        return `
-          <tr>
-            <td>${name}</td>
-            <td class="right">${fmt(now)}</td>
-            <td class="right">${fmt(bid)}</td>
-            <td class="right">${fmt(ask)}</td>
-            <td class="right">${fmt(B1)}</td>
-            <td class="right">${fmt(TP1)}</td>
-            <td class="right">${fmt(SL)}</td>
-            <td class="center" title="위험도 ${risk}/5">${dots.slice(0,5)}</td>
-            <td>${comment}</td>
-            <td class="center">${stime}</td>
-            <td class="center">${etime}</td>
-            <td>${st}</td>
-          </tr>`;
-      }).join("")
-    : `<tr><td colspan="12" class="muted">표시할 데이터가 없습니다.</td></tr>`;
-
-  warm.innerHTML = `
-    <table class="warm-table">
-      <thead>
-        <tr>
-          <th>코인명</th><th>현재가</th><th>매수(1호가)</th><th>매도(1호가)</th>
-          <th>매수(B1)</th><th>매도(TP1)</th><th>손절(SL)</th><th>위험도</th>
-          <th>쩔어 한마디</th><th>예열 시작</th><th>예열 종료</th><th>상태</th>
-        </tr>
-      </thead>
-      <tbody>${rowsHTML}</tbody>
-    </table>`;
-}
-
-/* 급등/급락 카드 (기존 함수 있을 수 있으니 존재 시만 호출하는 곳에서 사용) */
-function renderSpikeSets(spikes){
-  const hotBox = document.querySelector("#hot-set");
-  const coldBox = document.querySelector("#cold-set");
-  if (!spikes) return;
-  if (hotBox) {
-    hotBox.innerHTML = (spikes.hot || []).map(s => `<div>${s.symbol} <small>${(s.pct*100).toFixed(2)}%</small></div>`).join("") || "없음";
-  }
-  if (coldBox) {
-    coldBox.innerHTML = (spikes.cold || []).map(s => `<div>${s.symbol} <small>${(s.pct*100).toFixed(2)}%</small></div>`).join("") || "없음";
-  }
-}
-
-/* 메인 표 (기존 템플릿에 맞춰 최소 구성) */
-function renderMainTable(rows){
-  const tbody = $("#mainTbody");
-  if (!tbody) return;
-  const html = (rows||[]).map(r => `
-    <tr>
-      <td>${r.nameKr || (r.symbol||"").replace("KRW-","")}</td>
-      <td class="right">${fmt(r.now)}</td>
-      <td class="right">${fmt(r.order?.bid)}</td>
-      <td class="right">${fmt(r.order?.ask)}</td>
-      <td>중립</td>
-    </tr>
-  `).join("") || `<tr><td colspan="12">데이터 없음</td></tr>`;
-  tbody.innerHTML = html;
-}
-
-/* 로드/검색 */
-async function load(q = "") {
+// 숫자 포맷 (업비트 소수/호가 느낌)
+function fmt(n) {
   try {
-    const ts = $("#zz-upbit-ts");
-    if (ts){ ts.classList.add("muted"); ts.textContent = "📈 데이터 갱신 중…"; }
-    $("#errorMsg")?.classList.add("hidden");
-
-    const url = q ? `/api/tickers?q=${encodeURIComponent(q)}` : "/api/tickers";
-
-    // 타임아웃 + 에러 가드
-    let data;
-    try {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 10000);
-      const res = await fetch(url, { headers: { accept:"application/json" }, signal: controller.signal });
-      clearTimeout(timer);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      data = await res.json();
-    } catch (e) {
-      const tbody = $("#mainTbody");
-      if (tbody) tbody.innerHTML = `<tr><td colspan="12">⚠️ 로딩 실패: ${e.name==='AbortError'?'네트워크 지연(10초 초과)':(e.message||e)}</td></tr>`;
-      if (ts){ ts.textContent = "⚠️ 데이터 갱신 실패"; ts.classList.remove("muted"); }
-      console.error(e);
-      return;
-    }
-
-    // 급등/급락
-    if (data.spikes) renderSpikeSets(data.spikes);
-
-    // 검색결과 + 예열 동시 렌더
-    if (q) {
-      ensureSection("search-results", "🔍 검색 결과");
-      renderWarmCoins(data.rows || [], "🔍 검색 결과", "searchResults");
-      try {
-        const base = await fetchJSON("/api/tickers");
-        renderWarmCoins(base.rows || [], "♨️ 예열/가열 코인", "warmCoins");
-      } catch {}
-    } else {
-      const s = document.querySelector("#search-results");
-      if (s) s.remove();
-      renderWarmCoins(data.rows || [], "♨️ 예열/가열 코인", "warmCoins");
-    }
-
-    // 메인 표
-    renderMainTable(data.rows || []);
-
-    if (ts){
-      const t = new Date(data.updatedAt || Date.now());
-      ts.textContent = "✅ 업데이트 완료 " + t.toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit"});
-      ts.classList.remove("muted");
-    }
-  } catch (e) {
-    const tbody = $("#mainTbody");
-    if (tbody) tbody.innerHTML = `<tr><td colspan="12">⚠️ 스캔 실패: ${e.message||e}</td></tr>`;
-    const err = $("#errorMsg"); if (err){ err.textContent = `⚠️ ${e.message||e}`; err.classList.remove("hidden"); }
-    console.error(e);
+    const v = Number(n);
+    if (v >= 1000000) return v.toLocaleString("ko-KR", { maximumFractionDigits: 0 });
+    if (v >= 1000) return v.toLocaleString("ko-KR", { maximumFractionDigits: 0 });
+    return v.toLocaleString("ko-KR", { maximumFractionDigits: 2 });
+  } catch {
+    return n;
   }
 }
 
-/* 초기 이벤트 */
-document.addEventListener("DOMContentLoaded", () => {
-  const input = $("#search");
-  const btn   = $("#search-btn");
-  const scan  = $("#scan-btn");
+// “매수1/매도1” 임시 계산(기본 버전: 현재가 ±0.4%) — 이후 AI 타점으로 교체 가능
+function calcEntryExit(price) {
+  const p = Number(price);
+  const buy1  = p * 0.996;  // -0.4%
+  const sell1 = p * 1.004;  // +0.4%
+  return {
+    buy1:  Math.round(buy1 * 100) / 100,
+    sell1: Math.round(sell1 * 100) / 100,
+    state: "대기"
+  };
+}
 
-  if (btn)   btn.addEventListener("click", () => load((input?.value || "").trim()));
-  if (input) input.addEventListener("keypress", (e) => { if (e.key === "Enter") load((input.value || "").trim()); });
-  if (scan)  scan.addEventListener("click", () => load(""));
+// 테이블 한 줄 그리기
+function rowHTML(t) {
+  const { market, trade_price } = t; // market: "KRW-BTC"
+  const name = market.replace("KRW-", ""); // 표시는 심플하게
+  const { buy1, sell1, state } = calcEntryExit(trade_price);
+  return `
+    <tr>
+      <td>${name}</td>
+      <td>${fmt(trade_price)}</td>
+      <td>${fmt(buy1)}</td>
+      <td>${fmt(sell1)}</td>
+      <td>${state}</td>
+    </tr>
+  `;
+}
 
-  load(""); // 첫 로드
-});
+// 테이블 그리기
+function renderTable(tickers) {
+  if ($loadingRow) $loadingRow.style.display = "none";
+  if (!tickers || tickers.length === 0) {
+    $tbody.innerHTML = `<tr><td colspan="5">데이터 없음</td></tr>`;
+    return;
+  }
+  $tbody.innerHTML = tickers.map(rowHTML).join("");
+}
+
+// 업비트에서 데이터 가져와 테이블 반영
+async function pullAndRender() {
+  try {
+    const tickers = await getTickers(CURRENT_VIEW);
+    renderTable(tickers);
+  } catch (e) {
+    console.error("업비트 폴링 오류:", e);
+  }
+}
+
+// 검색 실행 (한글/영문 모두)
+function doSearch() {
+  const q = ($search.value || "").trim().toUpperCase();
+  if (!q) {
+    CURRENT_VIEW = ALL_MARKETS.slice(0, 20); // 기본: 상위 20개만 보여주기
+  } else {
+    CURRENT_VIEW = ALL_MARKETS
+      .filter(m => m.market.includes(q) || (m.korean_name && m.korean_name.includes(q)));
+    // 아무것도 없으면 KRW-BTC라도
+    if (CURRENT_VIEW.length === 0) CURRENT_VIEW = ALL_MARKETS.filter(m => m.market === "KRW-BTC");
+  }
+  CURRENT_VIEW = CURRENT_VIEW.map(m => m.market); // "KRW-BTC" 배열로 치환
+  pullAndRender();
+}
+
+// 초기화
+async function init() {
+  try {
+    const markets = await getKRWMarkets(); // [{market:"KRW-BTC", korean_name:"비트코인", ...}]
+    ALL_MARKETS = markets;
+
+    // 최초 화면: BTC만 보여주기(가볍게)
+    CURRENT_VIEW = ["KRW-BTC"];
+    pullAndRender();
+
+    // 1초 폴링
+    if (POLL_TIMER) clearInterval(POLL_TIMER);
+    POLL_TIMER = setInterval(pullAndRender, 1000);
+
+    // 이벤트
+    $btn.addEventListener("click", doSearch);
+    $search.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") doSearch();
+    });
+  } catch (e) {
+    console.error("초기화 오류:", e);
+  }
+}
+
+init();
