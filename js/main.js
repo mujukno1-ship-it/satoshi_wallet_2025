@@ -29,7 +29,7 @@ let FAILS = 0;
 const FAIL_LIMIT = 5;
 
 let lastTickAt = 0;
-let LAST_OK_TICKERS = [];   // 마지막 정상 응답
+let LAST_OK_TICKERS = [];
 let LAST_OK_AT = 0;
 
 const LAST_SEEN = new Map();
@@ -39,24 +39,23 @@ function setConnStatus(t, color = "#16a34a") {
   $conn.textContent = t;
   $conn.style.color = color;
 }
-const fmt = (n,d=2)=> {
+const fmt = (n,d=2)=>{
   const v = Number(n);
   if (!isFinite(v)) return "-";
-  if (v >= 1_000_000) return v.toLocaleString("ko-KR", { maximumFractionDigits: 0 });
-  if (v >= 1_000)    return v.toLocaleString("ko-KR", { maximumFractionDigits: 0 });
-  return v.toLocaleString("ko-KR", { maximumFractionDigits: d });
+  if (v >= 1_000_000) return v.toLocaleString("ko-KR",{maximumFractionDigits:0});
+  if (v >= 1_000)    return v.toLocaleString("ko-KR",{maximumFractionDigits:0});
+  return v.toLocaleString("ko-KR",{maximumFractionDigits:d});
 };
-function calcEntryExit(price){
-  const p=Number(price)||0;
-  return { buy1:Math.round(p*0.996*100)/100, sell1:Math.round(p*1.004*100)/100, state:"대기" };
+function calcEntryExit(p){ const price = Number(p)||0;
+  return { buy1:Math.round(price*0.996*100)/100, sell1:Math.round(price*1.004*100)/100, state:"대기" };
 }
 function rowHTML(t, stale=false){
-  const name=t.market.replace("KRW-","");
-  const {buy1,sell1,state}=calcEntryExit(t.trade_price);
+  const name = t.market.replace("KRW-","");
+  const {buy1,sell1,state} = calcEntryExit(t.trade_price);
   const staleMark = stale ? ' style="opacity:0.6"' : "";
   return `<tr${staleMark}><td>${name}</td><td>${fmt(t.trade_price)}</td><td>${fmt(buy1)}</td><td>${fmt(sell1)}</td><td>${state}</td></tr>`;
 }
-function renderTable(tickers, {stale=false} = {}){
+function renderTable(tickers,{stale=false}={}) {
   if ($loadingRow) $loadingRow.style.display = "none";
   if (!tickers?.length) { $tbody.innerHTML = `<tr><td colspan="5">데이터 없음</td></tr>`; return; }
   $tbody.innerHTML = tickers.map(t => rowHTML(t, stale)).join("");
@@ -74,7 +73,7 @@ function calcSpike(t){
 function setList($ul, items){
   if(!$ul) return;
   if(!items?.length){ $ul.innerHTML=`<li class="muted">항목 없음</li>`; return; }
-  $ul.innerHTML = items.slice(0, LIST_LIMIT)
+  $ul.innerHTML = items.slice(0,LIST_LIMIT)
     .map(it=>`<li>${it.label}<span style="float:right;">${it.value}</span></li>`).join("");
 }
 function updateSignals(tickers){
@@ -127,9 +126,7 @@ async function pullAndRender(){
     setConnStatus("연결 안정", "#16a34a");
   }catch(e){
     FAILS++;
-    console.warn("업비트 폴링 오류:", e?.message||e);
     const secs = Math.max(1, Math.floor((Date.now()-LAST_OK_AT)/1000));
-    // 캐시 보여주기(회색톤) + 지연 안내
     if (LAST_OK_TICKERS.length) {
       renderTable(LAST_OK_TICKERS, { stale: true });
       setConnStatus(`지연(${secs}s) · 복구중…(${FAILS}/${FAIL_LIMIT})`, "#ef4444");
@@ -139,20 +136,20 @@ async function pullAndRender(){
     if (FAILS >= FAIL_LIMIT) {
       FAILS = 0;
       setConnStatus("재연결 중…", "#ef4444");
-      await init(); // 전체 재초기화
+      await init();
       return;
     }
   }
 }
 
-// 워치독: 3초 이상 갱신 없으면 강제 갱신
+// 워치독: 3초 이상 멈추면 강제 갱신
 setInterval(()=>{ if(Date.now()-lastTickAt > POLL_MS*3) pullAndRender(); }, 1500);
 
 async function init(){
   try{
     setConnStatus("연결중…", "#16a34a");
     ALL_MARKETS = await getKRWMarkets();
-    if (!ALL_MARKETS?.length) throw new Error("마켓 목록 불러오기 실패");
+    if (!ALL_MARKETS?.length) throw new Error("마켓 목록 실패");
     CURRENT_VIEW = ["KRW-BTC"];
     await pullAndRender();
 
@@ -160,16 +157,9 @@ async function init(){
     if (HEART_TIMER)  clearInterval(HEART_TIMER);
     if (MARKETS_TIMER)clearInterval(MARKETS_TIMER);
 
-    // 1초 폴링
     POLL_TIMER = setInterval(pullAndRender, POLL_MS);
-
-    // 45초마다 하트비트 → 서버리스 웜업 & 네트워크 깨우기
-    HEART_TIMER = setInterval(() => { try { ping(); } catch {} }, 45_000);
-
-    // 5분마다 마켓 목록 재로딩(드물게 업비트 쪽 이슈 대비)
-    MARKETS_TIMER = setInterval(async () => {
-      try { ALL_MARKETS = await getKRWMarkets(); } catch {}
-    }, 5 * 60 * 1000);
+    HEART_TIMER = setInterval(()=>{ try{ ping(); }catch{} }, 45_000);
+    MARKETS_TIMER = setInterval(async ()=>{ try{ ALL_MARKETS = await getKRWMarkets(); }catch{} }, 5*60*1000);
 
     $btn?.addEventListener("click", doSearch);
     $search?.addEventListener("keydown", e=>{ if(e.key==="Enter") doSearch(); });
@@ -178,10 +168,9 @@ async function init(){
     window.addEventListener("online",  ()=>{ setConnStatus("온라인 – 재연결 시도", "#16a34a"); pullAndRender(); });
     window.addEventListener("offline", ()=>{ setConnStatus("오프라인 – 대기 중", "#ef4444"); });
     document.addEventListener("visibilitychange", ()=>{ if(!document.hidden) pullAndRender(); });
-  }catch(e){
+  }catch{
     setConnStatus("초기화 오류 – 재시도", "#ef4444");
     setTimeout(init, 1200);
   }
 }
 init();
-
