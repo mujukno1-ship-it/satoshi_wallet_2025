@@ -1,5 +1,27 @@
 // js/fullset_pro.js
 (function(){
+  // 안전 헬퍼: 배열/이터러블 변환
+const toArr = (v) =>
+  Array.isArray(v)
+    ? v
+    : v && typeof v[Symbol.iterator] === "function"
+    ? Array.from(v)
+    : [];
+
+
+  // 안전 헬퍼: 배열/이터러블 변환
+  const toArr = (v) =>
+    Array.isArray(v)
+      ? v
+      : v && typeof v[Symbol.iterator] === "function"
+      ? Array.from(v)
+      : [];
+
+  const qs = (s, r=document) => r.querySelector(s);
+  const qsa = (s, r=document) => Array.from(r.querySelectorAll(s));
+  const sleep = (ms) => new Promise(r=>setTimeout(r, ms));
+
+  
   const qs  = (s, r=document) => r.querySelector(s);
   const qsa = (s, r=document) => Array.from(r.querySelectorAll(s));
   const sleep = (ms) => new Promise(r=>setTimeout(r, ms));
@@ -9,21 +31,22 @@
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return res.json();
   }
-  async function getTickers(markets) {
-    const out = [];
-    const CHUNK = 80;
-    for (let i = 0; i < markets.length; i += CHUNK) {
-      const slice = markets.slice(i, i + CHUNK).join(',');
-      const arr = await api(`?type=ticker&markets=${encodeURIComponent(slice)}`);
-      out.push(...arr);
-    }
-    return out;
-  }
+ async function getTickers(markets) {
+  const out = [];
+  const CHUNK = 80;
 
-  // 정밀 타점 계산식 (ATR + VWAP + CVD 근사)
-  function calcEntryExitPro(t) {
-    const price = Number(t.trade_price) || 0;
-    const high  = Number(t.high_price  ?? price);
+  // markets 자체도 혹시 모를 안전 변환
+  const safeMarkets = toArr(markets);
+
+  for (let i = 0; i < safeMarkets.length; i += CHUNK) {
+    const slice = safeMarkets.slice(i, i + CHUNK).join(',');
+    const raw  = await api(`?type=ticker&markets=${encodeURIComponent(slice)}`);
+    const arr  = toArr(raw);          // ← 무조건 배열로 변환
+    out.push(...arr);                 // ← 이제 안전하게 전개됨
+  }
+  return out;
+}
+
     const low   = Number(t.low_price   ?? price);
     const vol   = Number(t.acc_trade_volume_24h ?? 1);
 
@@ -76,8 +99,4 @@
   }
   loop();
 })();
-// 값이 이터러블(배열/NodeList/Set 등)인지 체크
-const isIterable = (v) => v != null && typeof v[Symbol.iterator] === "function";
 
-// 어떤 값이 와도 "안전한 배열"로 바꿔줌
-const toArr = (v) => (Array.isArray(v) ? v : isIterable(v) ? Array.from(v) : []);
