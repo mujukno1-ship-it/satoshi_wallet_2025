@@ -1,0 +1,114 @@
+/* ───────────────────────────────
+   🧊 사토시의지갑 기본 스타일
+─────────────────────────────── */
+
+/* 전체 폰트/배경 */
+body {
+  font-family: "Noto Sans KR", sans-serif;
+  background: #fff;
+  color: #111;
+  margin: 0;
+  padding: 20px;
+}
+
+/* 제목 영역 */
+header {
+  margin-bottom: 25px;
+}
+.app-title {
+  display: flex;
+  align-items: center;
+  font-size: 26px;
+  font-weight: 700;
+}
+.subtitle {
+  margin-top: 4px;
+  color: #555;
+  font-size: 15px;
+}
+
+/* 연결 상태 표시 */
+#connStatus {
+  font-size: 14px;
+  color: gray;
+  margin-left: 8px;
+}
+
+/* ───────────────────────────────
+   검색창 & 버튼
+─────────────────────────────── */
+#search-section {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+#searchInput {
+  height: 48px;
+  min-width: 340px;
+  padding: 0 14px;
+  font-size: 18px;
+  border: 1.5px solid #d1d5db;
+  border-radius: 10px;
+  outline: none;
+}
+#searchInput:focus {
+  border-color: #60a5fa;
+  box-shadow: 0 0 0 3px rgba(96,165,250,.25);
+}
+
+#searchBtn,
+#btnScanPreheat {
+  height: 48px;
+  padding: 0 16px;
+  font-size: 16px;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+}
+
+/* ── 아이콘 버튼 (글자 없이 아이콘만 표시) ─────────────── */
+.icon-btn {
+  width: 48px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #eee;
+}
+.icon-btn::before {
+  content: "🧪"; /* 예열 스캔 아이콘 */
+  font-size: 22px;
+  line-height: 1;
+}
+.icon-btn:hover {
+  filter: brightness(0.95);
+}
+
+/* ───────────────────────────────
+   테이블 디자인
+─────────────────────────────── */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 15px;
+}
+th, td {
+  text-align: left;
+  padding: 8px 10px;
+  border-bottom: 1px solid #ddd;
+}
+
+/* ───────────────────────────────
+   모바일 대응
+─────────────────────────────── */
+@media (max-width: 520px) {
+  #searchInput {
+    min-width: 100%;
+    flex: 1 1 100%;
+  }
+  #searchBtn, #btnScanPreheat {
+    flex: 1 1 auto;
+  }
+}
