@@ -304,17 +304,24 @@ const riskTitle = (r => (
 }
 
 /* ---------- 초기화/검색 ---------- */
-document.addEventListener("DOMContentLoaded", async ()=>{
-  try{
-    await loadMarketsCached();
-  }catch(e){
-    console.error("❌ 마켓 로드 실패:", e);
-    renderEmpty("마켓 목록을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.");
-  }
-  const input = document.getElementById("search-input");
-  const btn   = document.getElementById("search-btn");
-  if (btn) btn.addEventListener("click", onSearch);
-  if (input) input.addEventListener("keydown", (e)=>{ if(e.key==="Enter") onSearch(); });
+ document.addEventListener("DOMContentLoaded", async ()=>{
+   try {
+      await loadMarketsCached();
+   }catch(e){
+      console.error("❌ 마켓 로드 실패:", e);
+      renderEmpty("마켓 목록을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.");
+   }
+
+   const input = document.getElementById("search-input");
+   const btn = document.getElementById("search-btn");
+   if (btn) btn.addEventListener("click", onSearch);
+   if (input) input.addEventListener("keydown", (e)=>{ if(e.key==="Enter") onSearch(); });
+
+   // ✅ 이 줄 바로 아래에 새 코드 추가
+
+
+  // ✅ 실시간 상승 9종 자동 갱신 시작
+  pollSpikes();
 });
 
 async function onSearch(){
