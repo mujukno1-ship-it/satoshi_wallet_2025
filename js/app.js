@@ -302,6 +302,95 @@ const riskTitle = (r => (
     else renderEmpty("서버 응답 대기 중…");
   }
 }
+/* ===== 실시간 상승(Top 9) ===== */
+
+/** KRW 마켓 목록 캐시 */
+async function getKrwMarkets() {
+  if (window._krwMarkets?.length) return window._krwMarkets;
+  const res = await fetch('/api/markets');
+  const all = await res.json();
+  const list = all
+    .filter(x => x.market?.startsWith('KRW-'))
+    .map(x => ({ market: x.market, korean_name: x.korean_name, english_name: x.english_name }));
+  window._krwMarkets = list;
+  console.log('KRW markets:', list.length);
+  return list;
+}
+
+/** 티커 묶음 조회 (100개씩 배치 요청) */
+async function fetchTickers(markets) {
+  const out = [];
+  for (let i=0; i<markets.length; i+=100) {
+    const chunk = markets.slice(i, i+100).map(m => m.market).join(',');
+    const r = await fetch(`/api/ticker?markets=${encodeURIComponent(chunk)}`);
+    const d = await r.json();
+    out.push(...d);
+  }
+  return out;
+}
+
+/** 변동률 상위 N개 추출 */
+function topSpikes(tickers, n=9) {
+  return tickers
+    .filter(t => typeof t.signed_change_rate === 'number')
+    .sort((a,b) => (b.signed_change_rate - a.signed_change_rate))
+    .slice(0, n);
+}
+
+/** KRW 포맷 보조 */
+function _fmtKRW(x){
+  try { return (typeof formatKRW === 'function') ? formatKRW(x) :
+    new Intl.NumberFormat('ko-KR').format(Math.round(x)); }
+  catch { return String(x ?? 0); }
+}
+
+/** 렌더링 */
+function renderSpikes(list){
+  const box = document.getElementById('spike-box');
+  if (!box) return; // 컨테이너 없으면 조용히 종료
+
+  // 컨테이너 내부 구조 보장
+  let title = box.querySelector('.title');
+  if (!title) {
+    title = document.createElement('div');
+    title.className = 'title';
+    title.textContent = '실시간 상승';
+    box.appendChild(title);
+  }
+  let ul = box.querySelector('#spike-list');
+  if (!ul) {
+    ul = document.createElement('ul');
+    ul.id = 'spike-list';
+    box.appendChild(ul);
+  }
+
+  ul.innerHTML = list.map(t => `
+    <li>
+      <span class="n">${t.korean_name ?? t.market} (${t.market})</span>
+      <span class="p">${_fmtKRW(t.trade_price ?? 0)}</span>
+      <span class="r up">${(t.signed_change_rate * 100).toFixed(2)}%</span>
+    </li>
+  `).join('');
+}
+
+/** 폴링 루프 */
+async function pollSpikes(){
+  try{
+    const mkts = await getKrwMarkets();
+    const ticks = await fetchTickers(mkts);
+    // 이름 매핑
+    const map = Object.fromEntries(mkts.map(m => [m.market, m]));
+    ticks.forEach(t => Object.assign(t, map[t.market] || {}));
+    const top = topSpikes(ticks, 9);
+    renderSpikes(top);
+  }catch(e){
+    console.error('pollSpikes error:', e);
+  }finally{
+    clearTimeout(window.spikeTimer);
+    // 6~9초 랜덤
+    window.spikeTimer = setTimeout(pollSpikes, 6000 + Math.floor(Math.random()*3000));
+  }
+}
 
 /* ---------- 초기화/검색 ---------- */
  document.addEventListener("DOMContentLoaded", async ()=>{
