@@ -4,7 +4,8 @@
    API 요청 중복 차단 + 깜빡임 없음
 */
 
-const PROXY = "https://corsproxy.io/?";
+const PROXY = "https://api.codetabs.com/v1/proxy/?quest=";
+
 const UPBIT = "https://api.upbit.com";
 const delay  = (ms) => new Promise(r => setTimeout(r, ms));
 
