@@ -5,6 +5,9 @@
    - 검색 정확도 향상(별칭 + 점수제) / 한글·영문·마켓코드 지원
    - 6~9초 지터 폴링 + 중복 fetch 취소 + 실패 시 직전 데이터 유지
 */
+import { computeTargets } from "./targets-engine.js";
+import { primaryAndTooltip } from "./targets-ui.js";   // (3번 파일 만들었다면)
+
 
 const delay = (ms) => new Promise(r => setTimeout(r, ms));
 
