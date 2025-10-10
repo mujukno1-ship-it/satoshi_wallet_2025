@@ -1,85 +1,61 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>사토시의직감</title>
-  <link rel="stylesheet" href="style.css" />
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>사토시의지갑</title>
+  <link rel="stylesheet" href="./style.css" />
 </head>
-<link rel="icon" href="data:,">
-  
 <body>
-  <header class="top">
-    <div class="container">
-      <h1 class="app-title">사토시의직감</h1>
-      <p class="subtitle">AI 기반 매수·매도 타점 및 예열·급등·급락 탐지 시스템</p>
-      <small id="connStatus" class="muted">🔌 연결 준비중...</small>
-    </div>
+  <header class="topbar">
+    <div class="title">사토시의지갑</div>
+    <div id="ws-status" class="badge off">Upbit WS disconnected</div>
   </header>
 
-  <!-- 검색 -->
-  <section id="search-section">
-    <input id="searchInput" placeholder="코인명/심볼 입력 (예: 비트, BTC)" />
-    <button id="searchBtn" class="primary">검색</button>
-  </section>
+  <main class="container">
+    <section class="search">
+      <input id="search-input" placeholder="코인명/심볼 입력 (예: 비트, BTC, KRW-BTC)" />
+      <button id="search-btn">검색</button>
+    </section>
 
-  <!-- 검색 결과 표 (검색창 바로 아래) -->
-  <div id="searchResult" style="margin-top:20px;">
-    <table class="coin-table">
-      <thead>
-        <tr>
-          <th>코인명</th>
-          <th>현재가</th>
-          <th>변동률</th>
-          <th>상태</th>
-          <th>위험도</th>
-          <th>예열시간</th>
-          <th>예열종류시간</th>
-          <th>쩔어결론</th>
-        </tr>
-      </thead>
-      <tbody id="resultBody">
-        <tr><td colspan="8" style="text-align:center;color:var(--muted);">검색 결과 없음</td></tr>
-      </tbody>
-    </table>
-  </div>
+    <section class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>코인명</th>
+            <th>현재가</th>
+            <th>변동률</th>
+            <th>상태</th>
+            <th>위험도</th>
+            <th>예열시간</th>
+            <th>예열종류시간</th>
+            <th>쩔어결론</th>
+          </tr>
+        </thead>
+        <tbody id="result-body">
+          <tr><td colspan="8" class="empty">검색 결과 없음</td></tr>
+        </tbody>
+      </table>
+    </section>
 
-  <!-- 실시간 섹션 -->
-  <section id="signal-section" class="container">
-    <h2>🚀 급등 핫세트</h2>
-    <ul id="list-soaring" class="list"></ul>
+    <section class="panels">
+      <div class="panel">
+        <h3>🚀 급등 핫세트</h3>
+        <ul id="hot-list"><li>스캔 대기…</li></ul>
+      </div>
+      <div class="panel">
+        <h3>🔥 예열 코인</h3>
+        <ul id="warm-list"><li>스캔 대기…</li></ul>
+      </div>
+      <div class="panel">
+        <h3>⚡ 가열 코인</h3>
+        <ul id="heat-list"><li>스캔 대기…</li></ul>
+      </div>
+    </section>
+  </main>
 
-    <h2>🔥 예열 코인</h2>
-    <ul id="list-warning" class="list"></ul>
-
-    <h2>⚡ 가열 코인</h2>
-    <ul id="list-heating" class="list"></ul>
-  </section>
-
-  <!-- 실시간 감지 연결 -->
-  <script type="module">
-    import { startRealtimeDetector } from "./js/realtime_detector.js";
-
-    const $ = (id) => document.getElementById(id);
-    const $conn = $("connStatus");
-
-    const paint = (el, arr) => {
-      if (!el) return;
-      const list = Array.isArray(arr) ? arr : [];
-      el.innerHTML = list.length
-        ? list.map(c => `<li>${c}</li>`).join("")
-        : `<li class="muted">스캔 대기...</li>`;
-    };
-
-    startRealtimeDetector(({ soaring = [], warning = [], heating = [], statusText }) => {
-      paint($("list-soaring"),  soaring);
-      paint($("list-warning"),  warning);
-      paint($("list-heating"),  heating);
-      if ($conn && statusText) $conn.textContent = statusText;
-    });
-  </script>
-
-  <!-- 검색 모듈 -->
-  <script type="module" src="./js/fullset_search.js"></script>
+  <script src="./js/upbit_ws.js"></script>
+  <script src="./js/scanner.js"></script>
+  <script src="./js/app.js"></script>
 </body>
 </html>
