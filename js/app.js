@@ -246,6 +246,19 @@ async function renderRowSafe(hit){
     const rate = tk.signed_change_rate ?? 0;
     const p    = tk.trade_price ?? 0;
 
+
+// === 풀세트 무한확장 타점 계산 ===
+const targets = computeTargets({
+  market: hit.market,
+  price: p,
+  rate,
+  now: new Date(), // 한국시간 기준 자동 반영
+});
+const buyInfo  = primaryAndTooltip(targets.buy);
+const takeInfo = primaryAndTooltip(targets.take);
+const stopInfo = primaryAndTooltip(targets.stop);
+// =================================
+
     const warm   = updateWarmTimes(tk.code || hit.market, rate);
     const risk   = riskFromRate(rate);
     const decide = decisionFromRate(rate);
