@@ -1,62 +1,79 @@
-// /js/upbit_ws.js — 업비트 WebSocket 최소 안정 버전
-// 참고: Upbit는 WS payload를 JSON 텍스트로 내려준다(브라우저에서는 ArrayBuffer → TextDecoder)
+// 업비트 WebSocket: KRW-BTC 실시간 가격만 연결(지표용 베이스)
+// 필요 심볼은 app.js에서 동적으로 재구독 가능하게 export 함수 제공
 
-const WS_URL = "wss://api.upbit.com/websocket/v1";
+let ws = null;
+let subscribed = new Set();
+const listeners = new Set();
 
-// codes 예: ["KRW-BTC","KRW-ETH", ...]
-export function startUpbitRealtime(onTick, { codes = ["KRW-BTC"], reconnect = true } = {}) {
-  let ws;
-  let stopped = false;
-  let delay = 1000;
+export function onTicker(cb){ listeners.add(cb); return ()=>listeners.delete(cb); }
 
-  const open = () => {
-    if (stopped) return;
-    try {
-      ws = new WebSocket(WS_URL);
-      ws.binaryType = "arraybuffer";
+export function connectWS() {
+  if (ws && (ws.readyState === 0 || ws.readyState === 1)) return;
 
-      ws.onopen = () => {
-        delay = 1000;
-        const msg = [
-          { ticket: "satoshi-wallet" },
-          { type: "ticker", codes }
-        ];
-        ws.send(JSON.stringify(msg));
-        onTick?.({ type: "status", text: "✅ Upbit WS connected" });
-      };
+  ws = new WebSocket("wss://api.upbit.com/websocket/v1");
+  ws.binaryType = "arraybuffer";
 
-      ws.onmessage = (e) => {
-        try {
-          const text = new TextDecoder().decode(e.data);
-          const d = JSON.parse(text);
-          // d.code: "KRW-BTC", d.trade_price, d.signed_change_rate 등
-          onTick?.({ type: "tick", data: d });
-        } catch (err) {
-          console.warn("[upbit_ws] parse 실패:", err);
-        }
-      };
+  ws.onopen = () => {
+    setWSBadge(true);
+    // 기본: BTC
+    if (subscribed.size === 0) subscribed.add("KRW-BTC");
+    sendSubscribe();
+  };
 
-      ws.onclose = () => {
-        onTick?.({ type: "status", text: "⚠️ Upbit WS closed → reconnecting…" });
-        if (reconnect && !stopped) {
-          setTimeout(open, delay);
-          delay = Math.min(delay * 2, 15000);
-        }
-      };
+  ws.onclose = () => {
+    setWSBadge(false);
+    // 자동 재연결
+    setTimeout(connectWS, 1500);
+  };
 
-      ws.onerror = () => {
-        try { ws.close(); } catch {}
-      };
-    } catch (e) {
-      console.error("[upbit_ws] open 실패:", e);
-      if (reconnect && !stopped) setTimeout(open, delay);
+  ws.onerror = () => {
+    setWSBadge(false);
+  };
+
+  ws.onmessage = async (e) => {
+    try{
+      // 업비트는 바이너리(JSON 문자열)로 옴 → 텍스트 변환
+      let txt = "";
+      if (e.data instanceof ArrayBuffer){
+        txt = new TextDecoder("utf-8").decode(e.data);
+      } else if (e.data.text) {
+        txt = await e.data.text();
+      } else {
+        txt = String(e.data);
+      }
+      const data = JSON.parse(txt);
+      if (data.type === "ticker") {
+        listeners.forEach(fn => fn(data));
+      }
+    }catch(err){
+      console.warn("WS parse error:", err);
     }
   };
+}
 
-  open();
+export function subscribe(markets){
+  markets.forEach(m => subscribed.add(m));
+  sendSubscribe();
+}
 
-  return () => {
-    stopped = true;
-    try { ws?.close(); } catch {}
-  };
+function sendSubscribe(){
+  if (!ws || ws.readyState !== 1) return;
+  const codes = Array.from(subscribed);
+  const msg = [
+    { ticket: "satoshi-wallet" },
+    { type: "ticker", codes }
+  ];
+  ws.send(JSON.stringify(msg));
+}
+
+function setWSBadge(on){
+  const el = document.getElementById("ws-status");
+  if (!el) return;
+  if (on){
+    el.classList.remove("off"); el.classList.add("on");
+    el.textContent = "Upbit WS connected";
+  } else {
+    el.classList.remove("on"); el.classList.add("off");
+    el.textContent = "Upbit WS disconnected";
+  }
 }
