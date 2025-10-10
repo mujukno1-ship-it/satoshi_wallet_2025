@@ -366,31 +366,38 @@ import { startUpbitRealtime } from "./js/upbit_ws.js";
     <ul id="list-heating" style="margin:6px 0 14px"></ul>
   </div>
 </div>
-
 <!-- 실시간 감지 연결 -->
 <script type="module">
   import { startRealtimeDetector } from "./js/realtime_detector.js";
 
-  const elS = document.getElementById("list-soaring");
-  const elW = document.getElementById("list-warming");
-  const elH = document.getElementById("list-heating");
+  // ✅ DOM 선택 헬퍼
+  const $ = (id) => document.getElementById(id);
 
-  function paint(el, arr) {
-    el.innerHTML = (arr && arr.length)
-      ? arr.map(c => `<li>${c}</li>`).join("")
-      : "<li>스캔 대기…</li>";
-  }
+  // ✅ 리스트 표시 함수 (안전하게 배열만 처리)
+  const paint = (el, arr) => {
+    const safeArr = Array.isArray(arr) ? arr : [];
+    el.innerHTML = safeArr.length
+      ? safeArr.map((c) => `<li>${c}</li>`).join("")
+      : "<li>스캔 대기...</li>";
+  };
 
-  startRealtimeDetector(({ soaring, warming, heating }) => {
-    paint(elS, soaring);
-    paint(elW, warming);
-    paint(elH, heating);
+  // ✅ 섹션 연결 (급등 / 급락 / 예열 / 가열)
+  const elSoaring = $("list-soaring");   // 🚀 급등 한세트
+  const elWarning = $("list-warning");   // ⚠️ 예열 코인
+  const elHeating = $("list-heating");   // 🔥 가열 코인
+
+  // ✅ 실시간 감지 시작
+  startRealtimeDetector(({ soaring = [], warning = [], heating = [] }) => {
+    paint(elSoaring, soaring);
+    paint(elWarning, warning);
+    paint(elHeating, heating);
   });
 </script>
-<script type="module" src="./js/fullset_search.js"></script>
-<!-- ⚙️ 스크립트 순서 중요! -->
-<script type="module" src="./js/main.js"></script>
+
+<!-- 업비트 REST API 기반 자동 갱신 -->
 <script type="module" src="./js/fullset_pro.js"></script>
+
+<!-- 검색 기능 (코인명/심볼 입력 시 테이블 표시) -->
 <script type="module" src="./js/fullset_search.js"></script>
 
 </body>
