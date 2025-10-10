@@ -6,10 +6,12 @@
    - “실시간 상승(9종)” 자동 갱신 박스 추가 (검색 아래)
 */
 
-const PROXY = ''; // 내부 API 그대로 사용
-const API_MARKETS = '/api/markets';
-const API_TICKER_BATCH = '/api/ticker?markets=';
-const API_TICKER_ONE   = '/api/ticker?market=';
+// ✅ 업비트 직접 API 주소 (vercel 프록시 아님)
+const PROXY = 'https://api.upbit.com/v1';
+const API_MARKETS = `${PROXY}/market/all?isDetails=false`;
+const API_TICKER_BATCH = `${PROXY}/ticker?markets=`;
+const API_TICKER_ONE = `${PROXY}/ticker?market=`;
+
 
 /* ---------- 내부 상태 ---------- */
 let marketsCache = [];          // 업비트 KRW 마켓 목록
