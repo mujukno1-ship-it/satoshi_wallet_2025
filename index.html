@@ -11,37 +11,18 @@
 <body>
   <header class="topbar">
     <div class="title">사토시의지갑</div>
-    <div class="badge on">Upbit Connected</div>
   </header>
 
   <main class="container">
-    <!-- 🔍 검색만 남김 -->
+    <!-- 🔍 검색창만 남김 -->
     <section class="search">
       <input id="search-input" placeholder="코인명/심볼 입력 (예: 비트, BTC, KRW-BTC)" />
       <button id="search-btn">검색</button>
     </section>
 
-    <!-- 📊 결과 테이블 -->
-    <section class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>코인명</th>
-            <th>현재가</th>
-            <th>변동률</th>
-            <th>상태</th>
-            <th>위험도</th>
-            <th>쩔어결론</th>
-          </tr>
-        </thead>
-        <tbody id="result-body">
-          <tr><td colspan="6" class="empty">검색 결과 없음</td></tr>
-        </tbody>
-      </table>
-    </section>
+    <!-- 결과/표/패널 전부 삭제됨 -->
   </main>
 
-  <!-- 모듈 스크립트 하나만 -->
   <script type="module" src="./js/app.js"></script>
 </body>
 </html>
