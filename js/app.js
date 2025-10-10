@@ -8,7 +8,7 @@ const PROXY = "https://corsproxy.io/?";
 const UPBIT = "https://api.upbit.com";
 const delay  = (ms) => new Promise(r => setTimeout(r, ms));
 
-/* ---------- 업비트 KRW 호가단위 ---------- */
+// ===== 업비트 KRW 호가표 (업비트 기본값) =====
 function getTickKRW(p){
   if (p >= 2000000) return 1000;
   if (p >= 1000000) return 500;
@@ -20,22 +20,30 @@ function getTickKRW(p){
   if (p >= 10)      return 0.1;
   if (p >= 1)       return 0.01;
   if (p >= 0.1)     return 0.001;
-  if (p >= 0.01)    return 0.0001;
+  if (p >= 0.01)    return 0.0001;    // ← SHIB 0.0175 구간
   if (p >= 0.001)   return 0.00001;
   return 0.000001;
 }
-function roundToTick(p){
-  const t=getTickKRW(Math.abs(p));
-  const q=Math.round(p/t);
-  const v=q*t;
-  const dec=(t.toString().split(".")[1]||"").length;
+
+// mode: "nearest"(표시), "down"(매수), "up"(매도/목표가)
+function roundToTick(price, mode="nearest"){
+  const t = getTickKRW(Math.abs(price));
+  const q = price / t;
+  let n = Math.round(q);
+  if (mode === "down") n = Math.floor(q);
+  if (mode === "up")   n = Math.ceil(q);
+  const v = n * t;
+  const dec = (t.toString().split(".")[1] || "").length;
   return Number(v.toFixed(dec));
 }
+
+// 자리수 고정 표시 (업비트처럼 0.0175 그대로 보이게)
 function formatKRW(p){
-  const t=getTickKRW(Math.abs(p));
-  const dec=(t.toString().split(".")[1]||"").length;
-  return p.toFixed(dec);
+  const t   = getTickKRW(Math.abs(p));
+  const dec = (t.toString().split(".")[1] || "").length;
+  return Number(p).toFixed(dec);   // ← 0.0175 유지(0.0175 → 0.0175)
 }
+
 
 /* ---------- API ---------- */
 async function getJSON(url){
