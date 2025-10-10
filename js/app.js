@@ -318,19 +318,33 @@ async function getKrwMarkets() {
 }
 
 /** 티커 묶음 조회 (100개씩 배치 요청) */
-async function fetchTickers(markets) {
+/** 티커 묶음 조회 (100개씩 배치 요청, 안전 버전) */
+async function fetchTickers(markets = []) {
+  if (!Array.isArray(markets) || markets.length === 0) {
+    console.warn('⚠️ fetchTickers: markets 비어있음');
+    return [];
+  }
+
   const out = [];
-  for (let i=0; i<markets.length; i+=100) {
-    const chunk = markets.slice(i, i+100).map(m => m.market).join(',');
-    const r = await fetch(`/api/ticker?markets=${encodeURIComponent(chunk)}`);
-    const d = await r.json();
-    out.push(...d);
+  for (let i = 0; i < markets.length; i += 100) {
+    const chunkArr = markets.slice(i, i + 100).map(m => m.market).filter(Boolean);
+    const chunk = chunkArr.join(',');
+    try {
+      const r = await fetch(`/api/ticker?markets=${encodeURIComponent(chunk)}`);
+      if (!r.ok) {
+        console.warn('❌ API 응답 실패:', r.status);
+        continue;
+      }
+      const d = await r.json();
+      if (Array.isArray(d)) out.push(...d);
+      else console.warn('⚠️ ticker 응답 형식 이상:', d);
+    } catch (e) {
+      console.error('fetchTickers 오류:', e);
+    }
   }
   return out;
 }
 
-/** 변동률 상위 N개 추출 */
-function topSpikes(tickers, n=9) {
   return tickers
     .filter(t => typeof t.signed_change_rate === 'number')
     .sort((a,b) => (b.signed_change_rate - a.signed_change_rate))
