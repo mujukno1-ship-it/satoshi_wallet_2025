@@ -60,7 +60,7 @@ async function onSearch(){
 
   if (pollTimer) clearInterval(pollTimer);
   await renderRow(hit);                      // 즉시 1회
- pollTimer = setInterval(()=>renderRow(hit), 5000); // 5초 주기
+pollTimer = setInterval(()=>renderRowSafe(hit), 5000);
 }
 
 // ====== 렌더 & 규칙 ======
