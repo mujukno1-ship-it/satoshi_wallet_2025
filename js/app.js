@@ -28,22 +28,21 @@ function getTickKRW(p){
   if (p >= 0.001)   return 0.00001;
   return 0.000001;
 }
-function roundToTick(price, mode="nearest"){
+
+function roundToTick(price){
   const t = getTickKRW(Math.abs(price));
-  const q = price / t;
-  let n;
-  if (mode === "down") n = Math.floor(q);
-  else if (mode === "up") n = Math.ceil(q);
-  else n = Math.round(q);
-  const v = n * t;
+  const q = Math.round(price / t);
+  const rounded = q * t;
   const dec = (t.toString().split(".")[1] || "").length;
-  return Number(v.toFixed(dec));
+  return Number(rounded.toFixed(dec));
 }
-function formatKRW(n){
-  const t = getTickKRW(Math.abs(n));
+
+function formatKRW(price){
+  const t = getTickKRW(Math.abs(price));
   const dec = (t.toString().split(".")[1] || "").length;
-  return new Intl.NumberFormat("ko-KR", { minimumFractionDigits: dec, maximumFractionDigits: dec }).format(n);
+  return price.toFixed(dec);
 }
+
 const toKRW = (n)=> new Intl.NumberFormat("ko-KR").format(n); // 필요시 사용
 
 /* ---------- 네트워크 ---------- */
