@@ -1,51 +1,89 @@
-// /js/realtime_detector.js — 실시간 분류(급등/예열/가열) 최소 구현
+// /js/realtime_detector.js — 실시간 분류(급등/예열/가열) + WS 실패시 REST 폴백
 import { startUpbitRealtime } from "./upbit_ws.js";
+import { getTickers } from "./upbit.js";
 
-// 필요한 심볼만 구독 (원한다면 더 추가)
+// 구독할 심볼
 const CODES = ["KRW-BTC", "KRW-ETH", "KRW-XRP", "KRW-SOL"];
 
 export function startRealtimeDetector(onUpdate) {
-  let soaring = []; // 급등
-  let warning = []; // 예열
-  let heating = []; // 가열
+  let soaring = [];
+  let warning = [];
+  let heating = [];
+  let stopPolling = null;  // REST 폴링 정리 함수
+  let stopWS = null;       // WS 정리 함수
 
-  const up = startUpbitRealtime((evt) => {
-    if (evt.type === "status") {
-      onUpdate?.({ soaring, warning, heating, statusText: `🔌 ${evt.text}` });
-      return;
-    }
-    if (evt.type !== "tick") return;
+  const flush = (statusText = "") => {
+    onUpdate?.({ soaring, warning, heating, statusText });
+  };
 
-    const d = evt.data;             // { code, trade_price, signed_change_rate, acc_trade_volume_24h ...}
-    const code = d?.code;
+  const classify = (t) => {
+    // t: Upbit ticker object
+    const code = t?.market || t?.code;
     if (!code) return;
+    const price = Number(t?.trade_price ?? 0);
+    const ratePct = Math.round((t?.signed_change_rate ?? 0) * 100);
+    const vol = Number(t?.acc_trade_volume_24h ?? 0);
 
-    const ratePct = Math.round((d?.signed_change_rate ?? 0) * 100); // -100~+100
-    // 간단한 분류 규칙 (임시)
-    // +3% 이상 → 급등 / 0~+3% → 예열 / -2% 이내이고 거래량 큰 경우 → 가열 (취향대로)
-    const vol = Number(d?.acc_trade_volume_24h ?? 0);
+    const label = `${code} : ${price.toLocaleString()}원`;
 
-    const addIf = (arr, cond) => {
-      const name = `${code} : ${Number(d?.trade_price ?? 0).toLocaleString()}원`;
-      const i = arr.indexOf(name);
+    const addOrRemove = (arr, cond) => {
+      const i = arr.indexOf(label);
       if (cond) {
-        if (i < 0) arr.unshift(name);
+        if (i < 0) arr.unshift(label);
         if (arr.length > 20) arr.pop();
       } else {
         if (i >= 0) arr.splice(i, 1);
       }
     };
 
-    addIf(soaring, ratePct >= 3);
-    addIf(warning, ratePct > 0 && ratePct < 3);
-    addIf(heating, ratePct <= -2 && vol > 10000);
+    // 임시 기준
+    addOrRemove(soaring, ratePct >= 3);
+    addOrRemove(warning, ratePct > 0 && ratePct < 3);
+    addOrRemove(heating, ratePct <= -2 && vol > 10000);
+  };
 
-    onUpdate?.({
-      soaring, warning, heating,
-      statusText: "✅ Upbit WS connected"
-    });
-  }, { codes: CODES });
+  const startPolling = () => {
+    // 1.5초마다 REST로 갱신 (WS가 막힌 환경용)
+    const markets = CODES.join(",");
+    const tick = async () => {
+      try {
+        const rows = await getTickers(CODES);
+        rows?.forEach(classify);
+        flush("🟡 Upbit REST polling");
+      } catch (e) {
+        flush("⚠️ Upbit REST polling 오류");
+        console.warn("[polling] error:", e);
+      }
+    };
+    tick();
+    const id = setInterval(tick, 1500);
+    stopPolling = () => clearInterval(id);
+  };
 
-  // 반환: 정리 함수
-  return () => up?.();
+  // 우선 WS 시도 → 안 되면 폴링으로 전환
+  try {
+    stopWS = startUpbitRealtime((evt) => {
+      if (evt.type === "status") {
+        flush(`🔌 ${evt.text}`);
+        // evt.text에 'closed'가 포함되면 폴링 시작(중복 시작 방지)
+        if (/closed/i.test(evt.text)) {
+          if (!stopPolling) startPolling();
+        }
+        return;
+      }
+      if (evt.type === "tick") {
+        classify(evt.data);
+        flush("✅ Upbit WS connected");
+      }
+    }, { codes: CODES, reconnect: true });
+  } catch (e) {
+    console.warn("[realtime_detector] WS 불가 → polling 전환:", e);
+    startPolling();
+  }
+
+  // 정리 함수 반환
+  return () => {
+    try { stopWS?.(); } catch {}
+    try { stopPolling?.(); } catch {}
+  };
 }
