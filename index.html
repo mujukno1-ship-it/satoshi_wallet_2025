@@ -1,15 +1,15 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>사토시의지갑</title>
   <link rel="stylesheet" href="./style.css" />
 </head>
 <body>
   <header class="topbar">
     <div class="title">사토시의지갑</div>
-    <div id="ws-status" class="badge off">Upbit WS disconnected</div>
+    <div id="ws-status" class="badge on">Upbit Connected</div>
   </header>
 
   <main class="container">
@@ -27,13 +27,11 @@
             <th>변동률</th>
             <th>상태</th>
             <th>위험도</th>
-            <th>예열시간</th>
-            <th>예열종류시간</th>
             <th>쩔어결론</th>
           </tr>
         </thead>
         <tbody id="result-body">
-          <tr><td colspan="8" class="empty">검색 결과 없음</td></tr>
+          <tr><td colspan="6" class="empty">검색 결과 없음</td></tr>
         </tbody>
       </table>
     </section>
@@ -41,28 +39,20 @@
     <section class="panels">
       <div class="panel">
         <h3>🚀 급등 핫세트</h3>
-        <ul id="hot-list"><li>스캔 대기…</li></ul>
+        <ul id="hot-list"><li>스캔 대기중...</li></ul>
       </div>
       <div class="panel">
         <h3>🔥 예열 코인</h3>
-        <ul id="warm-list"><li>스캔 대기…</li></ul>
+        <ul id="warm-list"><li>스캔 대기중...</li></ul>
       </div>
       <div class="panel">
         <h3>⚡ 가열 코인</h3>
-        <ul id="heat-list"><li>스캔 대기…</li></ul>
+        <ul id="heat-list"><li>스캔 대기중...</li></ul>
       </div>
     </section>
   </main>
 
-<script type="module" src="./js/app.js"></script>
-  ...
-  <main class="container">
-    <!-- 내용 동일 -->
-  </main>
-
-  <!-- ✅ 수정된 부분 -->
+  <!-- ✅ 메인 스크립트 -->
   <script type="module" src="./js/app.js"></script>
 </body>
 </html>
-
-
