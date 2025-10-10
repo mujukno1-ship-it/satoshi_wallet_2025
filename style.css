@@ -1,39 +1,35 @@
-:root { --bg:#0f1115; --card:#161a22; --text:#e7eaf0; --muted:#9aa4b2; --green:#2ecc71; --red:#ff7675; --line:#222633; }
+:root{
+  --card:#0f1116; --line:#1f2430; --muted:#8a8f98; --green:#1ccf7a; --red:#ff5d5d;
+}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Inter,Arial}
-.topbar{display:flex;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid var(--line);position:sticky;top:0;background:rgba(15,17,21,.9)}
-.title{font-weight:700;font-size:18px}
+html,body{margin:0;background:#0a0c10;color:#e8eaed;font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial}
 .container{max-width:1200px;margin:18px auto;padding:0 16px}
-.search{display:flex;gap:8px;margin-bottom:14px}
-.search input{flex:1;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--text)}
-.search button{padding:12px 16px;border:0;border-radius:12px;background:#2d7cff;color:#fff;cursor:pointer}
+.topbar{display:flex;gap:12px;align-items:center;margin-bottom:12px}
+.topbar input{flex:1;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:#0c0f14;color:#fff}
+.topbar button{padding:12px 16px;border:0;border-radius:12px;background:#2d7cff;color:#fff;cursor:pointer}
+
 .table-wrap{background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden}
 table{width:100%;border-collapse:collapse}
-thead th{font-weight:600;text-align:left;padding:12px 10px;background:#12151c;border-bottom:1px solid var(--line);white-space:nowrap}
+thead th{font-weight:600;text-align:left;padding:12px 10px;background:#12151c;border-bottom:1px solid var(--line)}
 tbody td{padding:12px 10px;border-bottom:1px solid var(--line);vertical-align:middle}
 .empty{color:var(--muted);text-align:center}
+
 .price.up{color:var(--green)} .price.down{color:var(--red)}
-.badge{padding:4px 8px;border-radius:8px;font-size:12px}
+.badge{padding:4px 8px;border-radius:8px;font-size:12px;background:#151a23}
+
 .nowrap{white-space:nowrap}
-/* === Risk badge === */
-.risk-badge{
-  display:inline-block;
-  min-width:1.6rem;
-  padding:.15rem .45rem;
-  border-radius:999px;
-  font-size:.85rem;
-  text-align:center;
-  line-height:1.1;
-  font-weight:600;
-  color:#fff;
-}
-.risk-1{ background:#16a34a; } /* 초록: 안전 */
-.risk-2{ background:#22c55e; }
-.risk-3{ background:#f59e0b; } /* 주황: 주의 */
-.risk-4{ background:#ef4444; } /* 빨강: 위험 */
-.risk-5{ background:#b91c1c; } /* 진빨강: 매우 위험 */
-#spike-box{ margin-top:20px; padding-top:10px; border-top:1px solid #e5e7eb55; }
-#spike-box .title{ font-size:1.2rem; font-weight:800; margin-bottom:8px; }
-#spike-list{ list-style:none; margin:0; padding:0; display:flex; flex-wrap:wrap; gap:8px 14px; }
-#spike-list li{ padding:6px 10px; border-radius:999px; border:1px solid #e5e7eb66; white-space:nowrap; display:flex; gap:8px; align-items:center; }
-#spike-list .up{ color:#dc2626; font-weight:700; }
+
+/* 스파이크 카드 */
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;margin-top:16px;padding:16px}
+.card .title{font-weight:700;margin-bottom:10px}
+.spike-list{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.spike{padding:14px;border:1px solid var(--line);border-radius:12px}
+.spike .n{display:block;font-weight:650;margin-bottom:6px}
+.spike .p{font-size:14px;color:#cfd5dd}
+.spike .r{font-size:13px}
+.r.up{color:var(--green)} .r.down{color:var(--red)}
+
+/* 위험 배지(1~5) */
+.risk-badge{display:inline-block;min-width:1.6rem;padding:.15rem .45rem;border-radius:999px;font-size:.85rem;text-align:center;line-height:1.1;font-weight:600;color:#fff}
+.risk-1{background:#16a34a} .risk-2{background:#22c55e} .risk-3{background:#f59e0b}
+.risk-4{background:#ef4444} .risk-5{background:#b91c1c}
