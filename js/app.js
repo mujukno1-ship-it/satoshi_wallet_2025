@@ -4,9 +4,23 @@
    API 요청 중복 차단 + 깜빡임 없음
 */
 
-const PROXY = "https://api.codetabs.com/v1/proxy/?quest=";
+// 업비트 마켓 목록 → 우리 도메인 API (CORS 문제 없음)
+async function loadMarkets() {
+  const res = await fetch("/api/markets", { cache: "no-store" });
+  if (!res.ok) throw new Error("업비트 마켓 불러오기 실패: " + res.status);
+  const list = await res.json();
+  // KRW-만 사용
+  return list.filter(m => m.market && m.market.startsWith("KRW-"));
+}
 
-const UPBIT = "https://api.upbit.com";
+// 업비트 티커 → 우리 도메인 API
+async function loadTicker(market) {
+  const res = await fetch(`/api/ticker?market=${encodeURIComponent(market)}`, { cache: "no-store" });
+  if (!res.ok) throw new Error("업비트 티커 불러오기 실패: " + res.status);
+  const data = await res.json();
+  return Array.isArray(data) ? data[0] : data;
+}
+
 const delay  = (ms) => new Promise(r => setTimeout(r, ms));
 
 // ===== 업비트 KRW 호가표 (업비트 기본값) =====
