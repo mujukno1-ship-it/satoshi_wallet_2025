@@ -465,3 +465,4 @@ async function onSearch(){
   await renderRowSafe(hit);   // 즉시 1회
   startPolling(hit);          // 이후 주기 갱신
 }
+console.log("✅ app.js 로드 완료");
