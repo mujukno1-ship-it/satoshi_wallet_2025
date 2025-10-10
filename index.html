@@ -3,16 +3,15 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>사토시의지갑</title>
+  <title>사토시의직감</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <!-- 헤더 -->
   <header class="top">
     <div class="container">
-      <h1 class="app-title">💠 사토시의지갑</h1>
+      <h1 class="app-title">사토시의직감</h1>
       <p class="subtitle">AI 기반 매수·매도 타점 및 예열·급등·급락 탐지 시스템</p>
-      <small id="connStatus" class="muted">🔄 연결 준비중...</small>
+      <small id="connStatus" class="muted">🔌 연결 준비중...</small>
     </div>
   </header>
 
@@ -20,385 +19,65 @@
   <section id="search-section">
     <input id="searchInput" placeholder="코인명/심볼 입력 (예: 비트, BTC)" />
     <button id="searchBtn" class="primary">검색</button>
-    <!-- 🔍 검색 결과 테이블: 검색창 바로 아래 -->
-<div id="searchResult" style="margin-top:20px;">
- <thead>
-  <tr>
-    <th>코인명</th>
-    <th>현재가</th>
-    <th>매수가</th>
-    <th>매도가</th>
-    <th>익절가</th>
-    <th>위험도</th>
-    <th>예열시작</th>
-    <th>예열종류</th>
-    <th>쩔어결론</th>
-  </tr>
-</thead>
-
-    <tbody id="resultBody">
-      <tr>
-        <td colspan="8" style="text-align:center;color:var(--muted);">
-          검색 결과 없음
-        </td>
-      </tr>
-    </tbody>
-  </table>
-</div>
-
-    <button id="btnScanPreheat" class="secondary">예열 스캔 (+8%)</button>
   </section>
 
-  <!-- 시그널 카드 -->
-  <section id="signal-section">
-    <div class="card">
-      <h4>🚀 급등 한세트</h4>
-      <ul id="spikeUpList"><li class="muted">스캔 대기...</li></ul>
-    </div>
-    <div class="card">
-      <h4>📉 급락 한세트</h4>
-      <ul id="spikeDownList"><li class="muted">스캔 대기...</li></ul>
-    </div>
-    <div class="card">
-      <h4>🔥 예열 코인</h4>
-      <ul id="preheatList"><li class="muted">스캔 대기...</li></ul>
-    </div>
-    <div class="card">
-      <h4>⚡ 가열 코인</h4>
-      <ul id="overheatList"><li class="muted">스캔 대기...</li></ul>
-    </div>
-  </section>
-
-  <!-- 테이블 -->
-  <section id="table-section">
-    
+  <!-- 검색 결과 표 (검색창 바로 아래) -->
+  <div id="searchResult" style="margin-top:20px;">
+    <table class="coin-table">
+      <thead>
+        <tr>
+          <th>코인명</th>
+          <th>현재가</th>
+          <th>변동률</th>
+          <th>상태</th>
+          <th>위험도</th>
+          <th>예열시간</th>
+          <th>예열종류시간</th>
+          <th>쩔어결론</th>
+        </tr>
+      </thead>
+      <tbody id="resultBody">
+        <tr><td colspan="8" style="text-align:center;color:var(--muted);">검색 결과 없음</td></tr>
+      </tbody>
     </table>
+  </div>
+
+  <!-- 실시간 섹션 -->
+  <section id="signal-section" class="container">
+    <h2>🚀 급등 핫세트</h2>
+    <ul id="list-soaring" class="list"></ul>
+
+    <h2>🔥 예열 코인</h2>
+    <ul id="list-warning" class="list"></ul>
+
+    <h2>⚡ 가열 코인</h2>
+    <ul id="list-heating" class="list"></ul>
   </section>
 
-  <!-- 필수 스크립트 -->
-  <script type="module" src="./js/main.js"></script>
-  <script src="./js/fullset_pro.js"></script>
-  <script src="./js/fullset_search.js"></script>
+  <!-- 실시간 감지 연결 -->
+  <script type="module">
+    import { startRealtimeDetector } from "./js/realtime_detector.js";
 
-  <!-- 표 데이터 자동 정비 -->
-  <script>
-    const thead = document.querySelector('.coin-table thead tr');
-    if (thead) {
-      const labels = ["위험도", "예열시간", "예열종류시간", "쩔어결론"];
-      const have = Array.from(thead.children).map(th => th.textContent.trim());
-      labels.forEach(lbl => {
-        if (!have.includes(lbl)) {
-          const th = document.createElement('th');
-          th.textContent = lbl;
-          thead.appendChild(th);
-        }
-      });
-    }
+    const $ = (id) => document.getElementById(id);
+    const $conn = $("connStatus");
 
-    function band(ratePct) {
-      if (ratePct >= 8) return "가열";
-      if (ratePct >= 3) return "예열";
-      if (ratePct <= -3) return "냉각";
-      return "안정";
-    }
+    const paint = (el, arr) => {
+      if (!el) return;
+      const list = Array.isArray(arr) ? arr : [];
+      el.innerHTML = list.length
+        ? list.map(c => `<li>${c}</li>`).join("")
+        : `<li class="muted">스캔 대기...</li>`;
+    };
 
-    function risk(ratePct, spike = 0) {
-      const abs = Math.abs(ratePct) + Math.min(Math.abs(spike), 5);
-      if (abs < 2) return 1;
-      if (abs < 5) return 2;
-      if (abs < 8) return 3;
-      if (abs < 15) return 4;
-      return 5;
-    }
-
-    async function enrichRow(tr) {
-      const symCell = tr.children?.[0];
-      if (!symCell) return;
-      const sym = symCell.textContent.trim();
-      if (!sym) return;
-      const market = `KRW-${sym}`;
-      try {
-        const res = await fetch(`/api/upbit?type=ticker&markets=${encodeURIComponent(market)}`);
-        const arr = await res.json();
-        const t = Array.isArray(arr.data) ? arr.data[0] : null;
-        if (!t) return;
-
-        const price = Number(t.trade_price) || 0;
-        const rate = Number(t.signed_change_rate) * 100 || 0;
-        const b = band(rate);
-        const r = risk(rate);
-        const zz = b === "예열" ? "매수기회" : b === "가열" ? "단기상승" : b === "냉각" ? "관망" : "안정";
-
-        tr.children[1].textContent = price.toLocaleString("ko-KR");
-        tr.children[2].textContent = `${rate.toFixed(2)}%`;
-        tr.children[3].textContent = b;
-        tr.children[4].textContent = r;
-        tr.children[5].textContent = new Date().toLocaleTimeString("ko-KR");
-        tr.children[6].textContent = "";
-        tr.children[7].textContent = zz;
-      } catch (e) {
-        console.warn("Row Error:", e);
-      }
-    }
-
-    function observeTable() {
-      const tbody = document.querySelector("#coinsTbody");
-      if (!tbody) return;
-      Array.from(tbody.querySelectorAll("tr")).forEach(enrichRow);
-      const ob = new MutationObserver(muts => {
-        muts.forEach(m => {
-          if (m.type === "childList") {
-            m.addedNodes.forEach(node => {
-              if (node.nodeType === 1 && node.tagName === "TR") enrichRow(node);
-            });
-          }
-        });
-      });
-      ob.observe(tbody, { childList: true });
-    }
-
-    observeTable();
-  </script>
-<!-- ====== BEGIN: 붙여넣기 (기존코드 유지 + 기능추가/오류복구) ====== -->
-<script>
-(() => {
-  /** ✅ 안전가드: 이미 주입했다면 재주입 방지 */
-  if (window.__upbitPatchV1) return;
-  window.__upbitPatchV1 = true;
-
-  /* DOM 핸들 */
-  const $ = (sel) => document.querySelector(sel);
-  const $$ = (sel) => Array.from(document.querySelectorAll(sel));
-
-  const $status = (function () {
-    // 연결 상태 표시용: 없으면 자동으로 만들기
-    let el = document.querySelector('.connection-status');
-    if (!el) {
-      const p = document.createElement('small');
-      p.className = 'connection-status muted';
-      p.style.marginLeft = '8px';
-      p.textContent = '연결 준비중...';
-      const header = document.querySelector('.subtitle, #connStatus') || document.querySelector('h1, header, body');
-      header && header.appendChild(p);
-      el = p;
-    }
-    return el;
-  })();
-
-  const $searchInput = $('#searchInput') || $('input[placeholder*="코인명"]') || $('input[type="search"]');
-  const $searchBtn   = $('#searchBtn')   || $('#search-btn') || $('button.primary, button:contains("검색")');
-  const $tbody       = $('#coinsTbody')  || document.querySelector('tbody#coinsTbody') || document.querySelector('#coinsTBody') || document.querySelector('section #coinsTbody');
-  // 로딩 행(없으면 자동 생성)
-  let $loadingRow = document.querySelector('#loadingRow');
-  if (!$loadingRow && $tbody) {
-    const tr = document.createElement('tr');
-    tr.id = 'loadingRow';
-    tr.innerHTML = `<td colspan="9">⏳ 로딩 중...</td>`;
-    $tbody.appendChild(tr);
-    $loadingRow = tr;
-  }
-
-  /** 공용: 숫자 포맷 / 위험도 / 밴드명 */
-  const fmt = (n) => Number(n||0).toLocaleString('ko-KR');
-  const band = (pct) => (pct >= 8 ? '가열' : pct >= 3 ? '예열' : pct <= -3 ? '냉각' : '안정');
-  const risk = (pct, spike = 0) => {
-    const abs = Math.abs(pct) + Math.min(Math.abs(spike), 5);
-    if (abs < 2) return 1;
-    if (abs < 5) return 2;
-    if (abs < 8) return 3;
-    if (abs < 15) return 4;
-    return 5;
-  };
-  const until = (ts) => {
-    const d = Math.max(0, Date.now() - (Number(ts)||0));
-    const s = Math.floor(d/1000), m = Math.floor(s/60);
-    return (m ? `${m}분 ` : '') + `${s%60}초`;
-  };
-
-  /** 업비트 마켓/이름 맵 */
-  let nameMap = null; // { "BTC": {market:"KRW-BTC", ko:"비트코인", en:"Bitcoin"} , ... }
-  async function ensureMarkets() {
-    if (nameMap) return nameMap;
-    const r = await fetch('/api/upbit?type=markets', { headers: {Accept:'application/json'} });
-    const js = await r.json();
-    if (!js.ok) throw new Error('markets 응답 실패');
-    const map = {};
-    js.data.forEach(it => {
-      try {
-        // KRW-만 취급(원화마켓 우선)
-        if (!/^KRW-/.test(it.market)) return;
-        const sym = it.market.split('-')[1];
-        map[sym] = { market: it.market, ko: it.korean_name, en: it.english_name };
-      } catch {}
+    startRealtimeDetector(({ soaring = [], warning = [], heating = [], statusText }) => {
+      paint($("list-soaring"),  soaring);
+      paint($("list-warning"),  warning);
+      paint($("list-heating"),  heating);
+      if ($conn && statusText) $conn.textContent = statusText;
     });
-    nameMap = map;
-    return map;
-  }
+  </script>
 
-  /** 티커 조회 */
-  async function fetchTicker(market) {
-    const r = await fetch(`/api/upbit?type=ticker&markets=${encodeURIComponent(market)}`, { headers: {Accept:'application/json'} });
-    const js = await r.json();
-    if (!js.ok) throw new Error('ticker 응답 실패');
-    const t = Array.isArray(js.data) ? js.data[0] : js.data;
-    return t;
-  }
-
-  /** 행 보장 */
-  function ensureRow() {
-    if (!$tbody) return null;
-    let tr = $tbody.querySelector('tr.__result');
-    if (!tr) {
-      tr = document.createElement('tr');
-      tr.className = '__result';
-      // 표 헤더가 다음 순서라고 가정: 코인명 | 현재가 | 변동률 | 상태 | 위험도 | 예열시간 | 예열종류시간 | 쩔어결론
-      tr.innerHTML = `
-        <td class="c-sym">-</td>
-        <td class="c-price">-</td>
-        <td class="c-pct">-</td>
-        <td class="c-state">-</td>
-        <td class="c-risk">-</td>
-        <td class="c-preheat">-</td>
-        <td class="c-pretype">-</td>
-        <td class="c-final">대기</td>
-      `;
-      if ($loadingRow) $loadingRow.remove();
-      $tbody.appendChild(tr);
-    }
-    return tr;
-  }
-
-  /** 화면 갱신 */
-  function renderRow(sym, info, t) {
-    const tr = ensureRow();
-    if (!tr) return;
-    const rpct = Number(t.signed_change_rate||0)*100;
-    const st = band(rpct);
-    const rlv = risk(rpct);
-    const zzu = (st === '예열' && rpct >= 2) ? '단기상승(매수)' :
-                (st === '예열')               ? '관망' :
-                (st === '가열' && rpct >= 8) ? '과열주의' :
-                (st === '냉각' && rpct <= -3)? '진입주의' : '관망';
-
-    tr.querySelector('.c-sym').textContent    = `${info.ko||sym} (${sym})`;
-    tr.querySelector('.c-price').textContent  = fmt(t.trade_price);
-    tr.querySelector('.c-pct').textContent    = `${(rpct).toFixed(2)}%`;
-    tr.querySelector('.c-state').textContent  = st;
-    tr.querySelector('.c-risk').textContent   = rlv;
-    tr.querySelector('.c-preheat').textContent= until(t.ts||Date.now());
-    tr.querySelector('.c-pretype').textContent= st === '예열' ? '지속' : '-';
-    tr.querySelector('.c-final').textContent  = zzu;
-  }
-
-  /** 검색 처리 */
-  async function handleSearch(raw) {
-    try {
-      $status.textContent = '🔌 연결 확인중...';
-      const map = await ensureMarkets();
-      $status.textContent = '✅ 연결 완료';
-
-      const q = (raw||'').trim().toUpperCase();
-      if (!q) return;
-      // 심볼/한글/영문 모두 매칭
-      let sym = null;
-      if (map[q]) sym = q;
-      else {
-        const found = Object.entries(map).find(([s, v]) =>
-          (v.ko||'').toUpperCase().includes(q) ||
-          (v.en||'').toUpperCase().includes(q));
-        if (found) sym = found[0];
-      }
-      if (!sym) {
-        alert('일치하는 코인을 찾지 못했습니다.');
-        return;
-      }
-      const market = map[sym].market;
-      const t = await fetchTicker(market);
-      renderRow(sym, map[sym], t);
-    } catch (e) {
-      console.error(e);
-      $status.textContent = '❌ 연결 오류 – 새로고침/재시도';
-    }
-  }
-
-  /** 이벤트 연결 (기존 코드와 충돌하지 않게 addEventListener만 사용) */
-  if ($searchBtn)  $searchBtn.addEventListener('click', () => handleSearch($searchInput?.value));
-  if ($searchInput) $searchInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') handleSearch($searchInput.value);
-  });
-
-  /** 첫 연결 테스트(표 “로딩 중…”만 보일 때 연결 상태 갱신) */
-  (async () => {
-    try {
-      await ensureMarkets();
-      $status.textContent = '✅ 연결 완료';
-    } catch (e) {
-      console.warn('초기 연결 실패', e);
-      $status.textContent = '❌ 연결 실패';
-    }
-  })();
-
-})();
-</script>
-<!-- ====== END: 붙여넣기 (기존코드 유지 + 기능추가/오류복구) ====== -->
-<!-- 실시간 업비트 시세 표시 -->
-<div style="margin-top:10px;font-weight:700;color:#00b894">
-  <span id="realtime-price">업비트 연결 중...</span>
-</div>
-
-<script type="module">
-import { startUpbitRealtime } from "./js/upbit_ws.js";
-
-  const el = document.getElementById("realtime-price");
-  startUpbitRealtime(({ code, price }) => {
-    el.textContent = `${code} : ${Number(price).toLocaleString()}원`;
-  });
-</script>
-<!-- 실시간 감지 리스트 UI -->
-<div style="margin-top:16px">
-  <div><b>🚀 급등 코인</b>
-    <ul id="list-soaring" style="margin:6px 0 14px"></ul>
-  </div>
-  <div><b>🔥 예열 코인</b>
-    <ul id="list-warming" style="margin:6px 0 14px"></ul>
-  </div>
-  <div><b>⚡ 가열 코인</b>
-    <ul id="list-heating" style="margin:6px 0 14px"></ul>
-  </div>
-</div>
-<!-- 실시간 감지 연결 -->
-<script type="module">
-  import { startRealtimeDetector } from "./js/realtime_detector.js";
-
-  // ✅ DOM 선택 헬퍼
-  const $ = (id) => document.getElementById(id);
-
-  // ✅ 리스트 표시 함수 (안전하게 배열만 처리)
-  const paint = (el, arr) => {
-    const safeArr = Array.isArray(arr) ? arr : [];
-    el.innerHTML = safeArr.length
-      ? safeArr.map((c) => `<li>${c}</li>`).join("")
-      : "<li>스캔 대기...</li>";
-  };
-
-  // ✅ 섹션 연결 (급등 / 급락 / 예열 / 가열)
-  const elSoaring = $("list-soaring");   // 🚀 급등 한세트
-  const elWarning = $("list-warning");   // ⚠️ 예열 코인
-  const elHeating = $("list-heating");   // 🔥 가열 코인
-
-  // ✅ 실시간 감지 시작
-  startRealtimeDetector(({ soaring = [], warning = [], heating = [] }) => {
-    paint(elSoaring, soaring);
-    paint(elWarning, warning);
-    paint(elHeating, heating);
-  });
-</script>
-
-<!-- 업비트 REST API 기반 자동 갱신 -->
-<script type="module" src="./js/fullset_pro.js"></script>
-
-<!-- 검색 기능 (코인명/심볼 입력 시 테이블 표시) -->
-<script type="module" src="./js/fullset_search.js"></script>
-
+  <!-- 검색 모듈 -->
+  <script type="module" src="./js/fullset_search.js"></script>
 </body>
 </html>
