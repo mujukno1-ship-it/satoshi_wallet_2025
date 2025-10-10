@@ -262,6 +262,15 @@ const stopInfo = primaryAndTooltip(targets.stop);
     const warm   = updateWarmTimes(tk.code || hit.market, rate);
     const risk   = riskFromRate(rate);
     const decide = decisionFromRate(rate);
+// === 위험도 계산 확장 ===
+const riskClass = `risk-${Math.min(5, Math.max(1, risk))}`;
+const riskTitle = (r => (
+  r>=5 ? "매우 위험 (급격 변동)" :
+  r>=4 ? "위험 (변동성 큼)" :
+  r>=3 ? "주의 (예열/가속)" :
+  r>=2 ? "보통 (관망/소량)" :
+         "안전 (완만)"
+))(risk);
 
     // 변화 없으면 렌더 스킵(깜빡임 제거)
     const key = `${p}|${rate}`;
@@ -280,6 +289,7 @@ const stopInfo = primaryAndTooltip(targets.stop);
         <td>${takeProfit(p, rate)}</td>
         <td>${stopLoss(p, rate)}</td>
         <td>${risk}</td>
+        <td title="${riskTitle}"><span class="risk-badge ${riskClass}">${risk}</span></td> 
         <td>${fmtTime(warm.startedAt)}</td>
         <td>${fmtTime(warm.endedAt)}</td>
         <td>${decide}</td>
