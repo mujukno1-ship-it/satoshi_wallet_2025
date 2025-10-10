@@ -1,4 +1,4 @@
-// /js/upbit.js — 동일출처 프록시 호출 모음
+// /js/upbit.js  — 공용 REST 호출 + 검색용 API
 
 async function callJson(url, { retry = 2 } = {}) {
   for (let i = 0; i <= retry; i++) {
@@ -8,24 +8,24 @@ async function callJson(url, { retry = 2 } = {}) {
       return await r.json();
     } catch (e) {
       if (i === retry) throw e;
-      await new Promise(res => setTimeout(res, 500 * (i + 1)));
+      await new Promise(res => setTimeout(res, 400 * (i + 1)));
     }
   }
 }
 
+// 단일 코인 현재가 (market: "KRW-BTC" 등)
 export async function getUpbitPrice(market = "KRW-BTC") {
   try {
     const j = await callJson(`/api/upbit?market=${encodeURIComponent(market)}`);
-    // ✅ 배열/객체 모두 지원
-    const price = Array.isArray(j) ? j?.[0]?.trade_price : j?.trade_price;
-    return typeof price === "number" ? price : null;
+    // 배열/객체 모두 지원
+    return typeof j?.trade_price === "number" ? j.trade_price : j?.[0]?.trade_price ?? null;
   } catch (e) {
     console.error("[getUpbitPrice] 실패:", e);
     return null;
   }
 }
 
-
+// 여러 코인 시세 (markets: ["KRW-BTC","KRW-ETH"] 등)
 export async function getTickers(markets = []) {
   const q = Array.isArray(markets) ? markets.join(",") : String(markets || "");
   if (!q) return [];
@@ -34,15 +34,5 @@ export async function getTickers(markets = []) {
   } catch (e) {
     console.error("[getTickers] 실패:", e);
     return [];
-  }
-}
-
-// (선택) 호가창 필요 시 사용
-export async function getOrderbook(market = "KRW-BTC") {
-  try {
-    return await callJson(`/api/orderbook?market=${encodeURIComponent(market)}`);
-  } catch (e) {
-    console.error("[getOrderbook] 실패:", e);
-    return null;
   }
 }
