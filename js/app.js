@@ -375,22 +375,14 @@ async function fetchTickers(markets = []) {
     }
   }
 
-  return out;
-}
-
-
-  return tickers
+/** 변동률 상위 n개 추출 */
+function topSpikes(tickers, n = 9) {
+  return (Array.isArray(tickers) ? tickers : [])
     .filter(t => typeof t.signed_change_rate === 'number')
-    .sort((a,b) => (b.signed_change_rate - a.signed_change_rate))
+    .sort((a, b) => b.signed_change_rate - a.signed_change_rate)
     .slice(0, n);
 }
 
-/** KRW 포맷 보조 */
-function _fmtKRW(x){
-  try { return (typeof formatKRW === 'function') ? formatKRW(x) :
-    new Intl.NumberFormat('ko-KR').format(Math.round(x)); }
-  catch { return String(x ?? 0); }
-}
 
 /** 렌더링 */
 function renderSpikes(list){
