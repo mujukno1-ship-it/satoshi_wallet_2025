@@ -451,7 +451,7 @@ async function pollSpikes(){
 
   // ✅ 실시간 상승 9종 자동 갱신 시작
   pollSpikes();
-});//
+}); // ← DOMContentLoaded 리스너 닫기
 
 async function onSearch(){
   const input = document.getElementById("search-input");
