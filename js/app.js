@@ -318,30 +318,60 @@ async function getKrwMarkets() {
 }
 
 /** 티커 묶음 조회 (100개씩 배치 요청) */
-/** 티커 묶음 조회 (100개씩 배치 요청, 안전 버전) */
+/** 티커 묶음 조회 (100개씩 배치 요청, 초안전 버전) */
 async function fetchTickers(markets = []) {
+  // ① 입력 방어
   if (!Array.isArray(markets) || markets.length === 0) {
     console.warn('⚠️ fetchTickers: markets 비어있음');
     return [];
   }
 
   const out = [];
+
+  // ② 100개씩 배치
   for (let i = 0; i < markets.length; i += 100) {
-    const chunkArr = markets.slice(i, i + 100).map(m => m.market).filter(Boolean);
-    const chunk = chunkArr.join(',');
+    // 문자열만, KRW-만, 공백/빈값 제거
+    const chunkArr = markets
+      .slice(i, i + 100)
+      .map(m => m && m.market)
+      .filter(s => typeof s === 'string' && s.startsWith('KRW-') && s.trim().length > 0);
+
+    // 유효한 심볼이 없으면 스킵
+    if (chunkArr.length === 0) continue;
+
+    // , 로 조인 → URL 인코딩
+    const chunk = encodeURIComponent(chunkArr.join(','));
+
     try {
-      const r = await fetch(`/api/ticker?markets=${encodeURIComponent(chunk)}`);
+      const r = await fetch(`/api/ticker?markets=${chunk}`);
       if (!r.ok) {
-        console.warn('❌ API 응답 실패:', r.status);
+        console.warn('❌ /api/ticker 응답 실패:', r.status);
+        continue; // 400 등은 건너뜀
+      }
+
+      // ③ 응답 파싱 + 형태 방어
+      let d;
+      try { d = await r.json(); }
+      catch (e) {
+        console.warn('⚠️ ticker JSON 파싱 실패:', e);
         continue;
       }
-      const d = await r.json();
-      if (Array.isArray(d)) out.push(...d);
-      else console.warn('⚠️ ticker 응답 형식 이상:', d);
+
+      // d가 배열이 아니면 안전 처리
+      const arr = Array.isArray(d) ? d : (d ? [d] : []);
+      // 그래도 이상하면 스킵
+      if (arr.length === 0) {
+        console.warn('⚠️ ticker 응답 형식 이상:', d);
+        continue;
+      }
+
+      out.push(...arr);
     } catch (e) {
       console.error('fetchTickers 오류:', e);
+      // 다음 배치 계속
     }
   }
+
   return out;
 }
 
