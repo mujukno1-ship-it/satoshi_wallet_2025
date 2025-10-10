@@ -334,7 +334,11 @@ async function fetchTickers(markets = []) {
     const chunkArr = markets
       .slice(i, i + 100)
       .map(m => m && m.market)
-      .filter(s => typeof s === 'string' && s.startsWith('KRW-') && s.trim().length > 0);
+      .filter(s =>
+        typeof s === 'string' &&
+        s.startsWith('KRW-') &&
+        s.trim().length > 0
+      );
 
     // 유효한 심볼이 없으면 스킵
     if (chunkArr.length === 0) continue;
@@ -359,7 +363,6 @@ async function fetchTickers(markets = []) {
 
       // d가 배열이 아니면 안전 처리
       const arr = Array.isArray(d) ? d : (d ? [d] : []);
-      // 그래도 이상하면 스킵
       if (arr.length === 0) {
         console.warn('⚠️ ticker 응답 형식 이상:', d);
         continue;
@@ -374,6 +377,7 @@ async function fetchTickers(markets = []) {
 
   return out;
 }
+
 
   return tickers
     .filter(t => typeof t.signed_change_rate === 'number')
