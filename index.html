@@ -1,51 +1,66 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>사토시의지갑</title>
+
+  <!-- 기본 스타일(기존과 동일하게 사용 가능) -->
   <link rel="stylesheet" href="./style.css" />
-  <!-- 파비콘(404 방지) -->
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%232d7cff'/%3E%3Ctext x='32' y='41' text-anchor='middle' font-size='28' fill='white'%3E%E2%82%A9%3C/text%3E%3C/svg%3E">
+
+  <style>
+    /* 안전장치: spike 박스 최소 스타일(기존 style.css 없어도 보이게) */
+    .card { background: #11161c; border: 1px solid #232b36; border-radius: 12px; padding: 16px; margin-top: 16px; }
+    .card .title { font-weight: 700; margin-bottom: 12px; }
+    .spike-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 10px; }
+    .spike-item { background:#0f141a; border:1px solid #1f2a37; border-radius:10px; padding:10px; line-height:1.25; }
+    .spike-item .n { display:block; font-weight:600; margin-bottom:4px; }
+    .spike-item .p { display:block; opacity:.8; font-size:.95rem; }
+    .spike-item .r { display:block; font-size:.9rem; }
+    .r.up { color:#13d18e; }
+    .r.down { color:#ff6262; }
+    @media (max-width: 860px){ .spike-list{grid-template-columns: repeat(2, minmax(0,1fr));} }
+    @media (max-width: 520px){ .spike-list{grid-template-columns: 1fr;} }
+  </style>
 </head>
+
 <body>
-  <header class="topbar">
-    <div class="title">사토시의지갑</div>
-  </header>
+<main class="container">
+  <h1 class="title">사토시의지갑</h1>
 
-  <main class="container">
-    <!-- 🔍 검색 -->
-    <section class="search">
-      <input id="search-input" placeholder="코인명/심볼 입력 (예: 비트, BTC, KRW-BTC)" />
-      <button id="search-btn">검색</button>
-    </section>
+  <div class="topbar">
+    <input id="search-input" class="search" placeholder="코인명/심볼 입력 (예: 비트, BTC, KRW-BTC)" />
+    <button id="search-btn" class="btn">검색</button>
+  </div>
 
-    <!-- 📊 결과 테이블 -->
-    <section class="table-wrap">
-      <table>
-       <div id="spike-box"></div>
- 
-        <thead>
-          <tr>
-            <th>코인명</th>
-            <th>현재가</th>
-            <th>변동률</th>
-            <th>매수</th>
-            <th>매도</th>
-            <th>손절</th>
-            <th>위험도</th>
-            <th>예열시작시간</th>
-            <th>예열종류시간</th>
-            <th>쩔어결론</th>
-          </tr>
-        </thead>
-        <tbody id="result-body">
-          <tr><td colspan="10" class="empty">검색 결과 없음</td></tr>
-        </tbody>
-      </table>
-    </section>
-  </main>
+  <section class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>코인명</th>
+          <th>현재가</th>
+          <th>변동률</th>
+          <th>매수</th>
+          <th>매도</th>
+          <th>손절</th>
+          <th>위험도</th>
+          <th>예열시작시간</th>
+          <th>예열종류시간</th>
+          <th>쩔어결론</th>
+        </tr>
+      </thead>
 
-  <script type="module" src="./js/app.js"></script>
+      <tbody id="result-body">
+        <tr><td colspan="10" class="empty">검색 결과 없음</td></tr>
+      </tbody>
+    </table>
+
+    <!-- ✅ 테이블 밖(아래)에 둬야 합니다. -->
+    <div id="spike-box" class="card"></div>
+  </section>
+</main>
+
+<!-- 앱 로드 -->
+<script type="module" src="./js/app.js"></script>
 </body>
 </html>
