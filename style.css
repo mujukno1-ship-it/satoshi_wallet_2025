@@ -32,3 +32,8 @@ tbody td{padding:12px 10px;border-bottom:1px solid var(--line);vertical-align:mi
 .risk-3{ background:#f59e0b; } /* 주황: 주의 */
 .risk-4{ background:#ef4444; } /* 빨강: 위험 */
 .risk-5{ background:#b91c1c; } /* 진빨강: 매우 위험 */
+#spike-box{ margin-top:20px; padding-top:10px; border-top:1px solid #e5e7eb55; }
+#spike-box .title{ font-size:1.2rem; font-weight:800; margin-bottom:8px; }
+#spike-list{ list-style:none; margin:0; padding:0; display:flex; flex-wrap:wrap; gap:8px 14px; }
+#spike-list li{ padding:6px 10px; border-radius:999px; border:1px solid #e5e7eb66; white-space:nowrap; display:flex; gap:8px; align-items:center; }
+#spike-list .up{ color:#dc2626; font-weight:700; }
