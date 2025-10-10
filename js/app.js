@@ -1,15 +1,11 @@
-/* ===== 사토시의지갑 - 검색 전용 통합본 =====
-   유지 기능:
-   - 코인 검색(한글/영문/마켓코드)
-   - 현재가/변동률/매수/매도/손절/위험도/예열시작/예열종류/쩔어결론 표시
-   - 5초 간격 자동 갱신 (429 완화)
-   - 네트워크 실패 시 직전 데이터 유지(깜박임 NO)
-   - 예열(2~5%) 구간 진입/이탈 시각 추적
-   - 업비트 KRW 호가단위/소수점 정확 적용(저가코인 포함)
+/* ===== 사토시의지갑 - 안정 기본버전 =====
+   검색 후 실시간 가격/매수/매도/손절/위험도/쩔어결론 표시
+   업비트 KRW 호가단위 완전 동일
+   API 요청 중복 차단 + 깜빡임 없음
 */
 
 const PROXY = "https://corsproxy.io/?";
-const UPBIT  = "https://api.upbit.com";
+const UPBIT = "https://api.upbit.com";
 const delay  = (ms) => new Promise(r => setTimeout(r, ms));
 
 /* ---------- 업비트 KRW 호가단위 ---------- */
@@ -28,34 +24,24 @@ function getTickKRW(p){
   if (p >= 0.001)   return 0.00001;
   return 0.000001;
 }
-
-function roundToTick(price){
-  const t = getTickKRW(Math.abs(price));
-  const q = Math.round(price / t);
-  const rounded = q * t;
-  const dec = (t.toString().split(".")[1] || "").length;
-  return Number(rounded.toFixed(dec));
+function roundToTick(p){
+  const t=getTickKRW(Math.abs(p));
+  const q=Math.round(p/t);
+  const v=q*t;
+  const dec=(t.toString().split(".")[1]||"").length;
+  return Number(v.toFixed(dec));
+}
+function formatKRW(p){
+  const t=getTickKRW(Math.abs(p));
+  const dec=(t.toString().split(".")[1]||"").length;
+  return p.toFixed(dec);
 }
 
-function formatKRW(price){
-  const t = getTickKRW(Math.abs(price));
-  const dec = (t.toString().split(".")[1] || "").length;
-  return price.toFixed(dec);
-}
-
-const toKRW = (n)=> new Intl.NumberFormat("ko-KR").format(n); // 필요시 사용
-
-/* ---------- 네트워크 ---------- */
-async function getJSON(url, tries=3){
-  let err;
-  for (let i=0;i<tries;i++){
-    try{
-      const r = await fetch(url, { cache:"no-store" });
-      if(!r.ok) throw new Error("HTTP "+r.status);
-      return await r.json();
-    }catch(e){ err=e; await delay(500*(i+1)); }
-  }
-  throw err;
+/* ---------- API ---------- */
+async function getJSON(url){
+  const r = await fetch(url, { cache:"no-store" });
+  if(!r.ok) throw new Error("HTTP "+r.status);
+  return await r.json();
 }
 async function loadMarkets(){
   const url = `${PROXY}${encodeURIComponent(`${UPBIT}/v1/market/all?isDetails=false`)}`;
@@ -68,114 +54,84 @@ async function loadTicker(market){
   return Array.isArray(res) ? res[0] : res;
 }
 
-/* ---------- 상태/규칙 ---------- */
-let marketsCache = null;
-let pollTimer = null;
-let lastRowHTML = "";              // 마지막 정상 렌더 저장(깜박임 방지)
-const warmState = {};              // 예열 상태 추적
-
-function statusFromRate(r){ if(r>=0.05) return "급등"; if(r>=0.02) return "예열"; if(r<=-0.02) return "가열"; return "중립"; }
-function riskFromRate(r){ const a=Math.abs(r); return a>=0.05?3:a>=0.02?2:1; }
+/* ---------- 규칙 ---------- */
+function riskFromRate(r){
+  const a=Math.abs(r);
+  return a>=0.05?3:a>=0.02?2:1;
+}
 function decisionFromRate(r){
   if(r>=0.05) return "익절 분할 / 추격주의";
   if(r>=0.02) return "눌림 매수 후보";
   if(r<=-0.02) return "저점 분할대기";
   return "관망";
 }
-function buyPrice(p, r){
-  if(r>=0.05) return ""; // 급등 추격 금지
-  const target = r>=0.02 ? p*0.995 : r<=-0.02 ? p*0.985 : p*0.998;
-  return formatKRW(roundToTick(target, "down"));
+function buyPrice(p,r){
+  if(r>=0.05) return "";
+  const target = r>=0.02?p*0.995:r<=-0.02?p*0.985:p*0.998;
+  return formatKRW(roundToTick(target));
 }
-function takeProfit(p, r){
-  const target = r>=0.05 ? p*1.05 : r>=0.02 ? p*1.03 : p*1.02;
-  return formatKRW(roundToTick(target, "up"));
+function takeProfit(p,r){
+  const target = r>=0.05?p*1.05:r>=0.02?p*1.03:p*1.02;
+  return formatKRW(roundToTick(target));
 }
-function stopLoss(p, r){
-  const target = r>=0.05 ? p*0.97 : r>=0.02 ? p*0.98 : p*0.985;
-  return formatKRW(roundToTick(target, "down"));
-}
-const fmtTime = (ms)=> ms ? new Date(ms).toLocaleTimeString("ko-KR",{hour:'2-digit',minute:'2-digit',second:'2-digit'}) : "—";
-function updateWarmTimes(code, rNow){
-  const s = warmState[code] || { startedAt:null, endedAt:null, inWarm:false };
-  const inWarmNow = (rNow>=0.02 && rNow<0.05);
-  if (inWarmNow && !s.inWarm){ s.startedAt = Date.now(); s.endedAt = null; }
-  else if (!inWarmNow && s.inWarm){ s.endedAt = Date.now(); }
-  s.inWarm = inWarmNow;
-  warmState[code] = s;
-  return s;
+function stopLoss(p,r){
+  const target = r>=0.05?p*0.97:r>=0.02?p*0.98:p*0.985;
+  return formatKRW(roundToTick(target));
 }
 
-/* ---------- 초기화 ---------- */
+/* ---------- 실행 ---------- */
+let markets = [];
+let timer=null;
+let lastHTML="";
+
 document.addEventListener("DOMContentLoaded", async ()=>{
-  marketsCache = await loadMarkets();
-
-  document.getElementById("search-btn").addEventListener("click", onSearch);
-  document.getElementById("search-input").addEventListener("keydown",(e)=>{ if(e.key==="Enter") onSearch(); });
+  markets = await loadMarkets();
+  document.getElementById("search-btn").addEventListener("click", search);
+  document.getElementById("search-input").addEventListener("keydown",(e)=>{if(e.key==="Enter")search();});
 });
 
 function findMarket(q){
-  const s = q.toLowerCase().replace(/\s/g,"");
-  return marketsCache.find(m =>
-    m.market.toLowerCase() === s ||
-    (m.korean_name||"").replace(/\s/g,"").includes(s) ||
-    (m.english_name||"").toLowerCase().includes(s)
-  ) || marketsCache.find(m => m.market.toLowerCase().endsWith(s));
+  q=q.toLowerCase().replace(/\s/g,"");
+  return markets.find(m=>m.market.toLowerCase()===q ||
+    (m.korean_name||"").replace(/\s/g,"").includes(q) ||
+    (m.english_name||"").toLowerCase().includes(q));
 }
 
-/* ---------- 렌더 ---------- */
-function renderEmpty(msg){
-  const tb = document.getElementById("result-body");
-  if (!tb) return;
-  tb.innerHTML = `<tr><td colspan="10" class="empty">${msg}</td></tr>`;
-}
-
-async function onSearch(){
-  const q = document.getElementById("search-input").value.trim();
+async function search(){
+  const q=document.getElementById("search-input").value.trim();
   if(!q) return;
+  const hit=findMarket(q);
+  const tb=document.getElementById("result-body");
+  if(!hit){tb.innerHTML="<tr><td colspan='10'>검색 결과 없음</td></tr>";return;}
 
-  const hit = findMarket(q);
-  if(!hit){ renderEmpty("검색 결과 없음"); if(pollTimer) clearInterval(pollTimer); return; }
-
-  if (pollTimer) clearInterval(pollTimer);
-  await renderRowSafe(hit);                      // 즉시 1회
-  pollTimer = setInterval(()=>renderRowSafe(hit), 5000); // 5초 주기
+  if(timer) clearInterval(timer);
+  await render(hit);
+  timer=setInterval(()=>render(hit),5000);
 }
 
-async function renderRowSafe(hit){
+async function render(hit){
+  const tb=document.getElementById("result-body");
   try{
-    const tk    = await loadTicker(hit.market);
-    const rate  = tk.signed_change_rate || 0;
-    const price = tk.trade_price || 0;
-
-    const warm      = updateWarmTimes(tk.code || hit.market, rate);
-    const status    = statusFromRate(rate);
-    const risk      = riskFromRate(rate);
-    const decision  = decisionFromRate(rate);
-
-    const row = `
+    const tk=await loadTicker(hit.market);
+    const rate=tk.signed_change_rate||0;
+    const p=tk.trade_price||0;
+    const risk=riskFromRate(rate);
+    const dec=decisionFromRate(rate);
+    const row=`
       <tr>
-        <td class="nowrap">${hit.korean_name} (${hit.market})</td>
-        <td class="price ${tk.change==='RISE'?'up':(tk.change==='FALL'?'down':'')}">${formatKRW(roundToTick(price))}</td>
+        <td>${hit.korean_name} (${hit.market})</td>
+        <td>${formatKRW(roundToTick(p))}</td>
         <td>${(rate*100).toFixed(2)}%</td>
-        <td>${buyPrice(price, rate)}</td>
-        <td>${takeProfit(price, rate)}</td>
-        <td>${stopLoss(price, rate)}</td>
+        <td>${buyPrice(p,rate)}</td>
+        <td>${takeProfit(p,rate)}</td>
+        <td>${stopLoss(p,rate)}</td>
         <td>${risk}</td>
-        <td>${fmtTime(warm.startedAt)}</td>
-        <td>${fmtTime(warm.endedAt)}</td>
-        <td>${decision}</td>
+        <td>${dec}</td>
       </tr>`;
-
-    const tb = document.getElementById("result-body");
-    if (!tb) return;
-    tb.innerHTML = row;
-    lastRowHTML = row; // 정상 데이터 저장
+    tb.innerHTML=row;
+    lastHTML=row;
   }catch(e){
-    // 실패 시 이전 데이터 유지 (깜빡임 방지)
-    const tb = document.getElementById("result-body");
-    if (!tb) return;
-    if (lastRowHTML) tb.innerHTML = lastRowHTML;
-    else renderEmpty("서버 응답 대기 중…");
+    if(lastHTML) tb.innerHTML=lastHTML;
+    else tb.innerHTML="<tr><td colspan='10'>서버 응답 대기 중...</td></tr>";
   }
 }
