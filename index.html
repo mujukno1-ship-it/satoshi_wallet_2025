@@ -1,226 +1,157 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>사토시의지갑 - 실시간 시세 조회</title>
-  <link rel="stylesheet" href="/style.css" />
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>사토시의지갑 (Satoshi Wallet)</title>
+
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;700&display=swap" rel="stylesheet">
+
   <style>
-    body {
-      font-family: 'Pretendard', sans-serif;
-      background: #0a0a0a;
-      color: #fff;
+    :root {
+      --bg: #0e1117;
+      --card: #111827;
+      --muted: #94a3b8;
+      --fg: #e5e7eb;
+      --accent: #22d3ee;
+      --row: #0b1220;
+      --row-alt: #0f1628;
+      --up: #10b981;
+      --down: #ef4444;
+      --warn: #f59e0b;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      height: 100%;
       margin: 0;
-      padding: 0;
-      text-align: center;
+      font-family: 'Pretendard', ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+      background: var(--bg);
+      color: var(--fg);
     }
-    header {
-      background: #111;
-      padding: 20px;
-      border-bottom: 1px solid #333;
+    .wrap {
+      max-width: 1100px;
+      margin: 32px auto 80px;
+      padding: 0 16px;
     }
-    header h1 {
-      margin: 0;
-      color: #00ffa3;
-    }
-    #search-box {
-      margin: 20px auto;
-      display: flex;
-      justify-content: center;
+    h1 {
+      font-size: 28px;
+      font-weight: 800;
+      margin: 0 0 16px;
+      display: inline-flex;
+      align-items: center;
       gap: 8px;
+      color: #a7f3d0;
+      text-shadow: 0 0 10px rgba(34,211,238,.3);
     }
-    #search-input {
-      width: 240px;
-      padding: 8px 10px;
-      border-radius: 8px;
-      border: 1px solid #555;
-      background: #1b1b1b;
-      color: #fff;
+    .search-box {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin: 8px 0 12px;
     }
-    #search-btn {
-      background: #00ffa3;
-      border: none;
-      color: #000;
-      font-weight: bold;
-      padding: 8px 14px;
+    .ipt {
+      width: 260px;
+      height: 36px;
+      padding: 0 12px;
+      border: 1px solid #1f2937;
+      background: #0b1220;
+      color: var(--fg);
       border-radius: 8px;
+      outline: none;
+    }
+    .btn {
+      height: 36px;
+      padding: 0 14px;
+      background: #10b981;
+      color: #06111a;
+      border: 0;
+      border-radius: 10px;
+      font-weight: 700;
       cursor: pointer;
-      transition: 0.2s;
     }
-    #search-btn:hover {
-      background: #00cc82;
+    .status {
+      font-size: 14px;
+      color: #a0f5c5;
+      margin: 2px 0 16px;
+      min-height: 18px;
     }
-    #search-status {
-      color: #888;
-      margin-top: 10px;
-    }
-    table {
-      margin: 20px auto;
+
+    .tbl {
+      width: 100%;
       border-collapse: collapse;
-      width: 90%;
-      max-width: 800px;
+      overflow: hidden;
+      border-radius: 12px;
+      background: var(--card);
+      box-shadow: 0 0 0 1px #0b1624 inset;
     }
-    th, td {
-      padding: 10px;
-      border-bottom: 1px solid #333;
+    .tbl thead th {
+      background: #0c1424;
+      padding: 14px 10px;
+      font-size: 13px;
+      color: var(--muted);
       text-align: center;
+      white-space: nowrap;
     }
-    th {
-      color: #00ffa3;
+    .tbl tbody td {
+      padding: 12px 10px;
+      border-top: 1px solid #0b1624;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
     }
-    tr:hover {
-      background: rgba(0, 255, 163, 0.05);
+    .tbl tbody tr:nth-child(2n) td {
+      background: #0b1220;
+    }
+    .tbl tbody td:first-child,
+    .tbl thead th:first-child { text-align: left; }
+
+    .txt-up { color: var(--up); }
+    .txt-down { color: var(--down); }
+    .txt-warn { color: var(--warn); }
+    .risk {
+      display:inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      color: #0a111a;
     }
   </style>
 </head>
 <body>
-  <header>
+  <div class="wrap">
     <h1>💰 사토시의지갑 (Satoshi Wallet)</h1>
-    <div id="search-box">
-      <input id="search-input" placeholder="코인명/심볼 (예: 비트, BTC, KRW-BTC)" />
-      <button id="search-btn">검색</button>
+
+    <!-- 검색 -->
+    <div class="search-box">
+      <input id="search-input" class="ipt" placeholder="코인명/심볼 입력 (예: 비트, BTC, KRW-BTC)" />
+      <button id="search-btn" class="btn">검색</button>
     </div>
-    <div id="search-status" style="margin:6px 0 12px;color:#a0f5c5;font-size:14px;">
-  검색 대기 중...
-</div>
 
-    <div id="search-status">검색 대기 중...</div>
-  </header>
-<!-- 검색 입력 -->
-<div style="display:flex; gap:8px; align-items:center; margin:16px 0;">
-  <input id="search-input" placeholder="코인명/심볼 입력 (예: 비트, BTC, KRW-BTC)" />
-  <button id="search-btn">검색</button>
-  <span id="search-count" style="opacity:.7; margin-left:8px;"></span>
-</div>
+    <!-- 쩔어 한마디 -->
+    <div id="search-status" class="status">검색 대기 중…</div>
 
-<!-- 검색창 바로 아래에 넣기 -->
-<div id="search-status" style="margin:6px 0 12px;color:#a0f5c5;font-size:14px;">
-  검색 대기 중...
-</div>
-
-<!-- 결과 테이블 -->
-<table class="tbl">
-  <thead>
-    <tr>
-      <th>코인명</th>
-      <th>현재가 (KRW)</th>
-      <th>변동률</th>
-      <th>매수</th>
-      <th>매도</th>
-      <th>손절</th>
-      <th>위험도</th>          <!-- ✅ 새로 추가 -->
-      <th>예열시작시간</th>
-      <th>예열종료시간</th>
-    </tr>
-  </thead>
-  <tbody id="result-body"></tbody>
-</table>
-
-<!-- js 연결 -->
-<script defer src="/js/app.js"></script>
-
-
-<!-- 아래 한 줄로 js 연결만 확인 -->
-<script defer src="/js/app.js"></script>
-
-  <main>
-    <table>
+    <!-- 결과 테이블 -->
+    <table class="tbl">
       <thead>
         <tr>
           <th>코인명</th>
           <th>현재가 (KRW)</th>
           <th>변동률</th>
-          <th>거래대금(24h)</th>
+          <th>매수</th>
+          <th>매도</th>
+          <th>손절</th>
+          <th>위험도</th>          <!-- ✅ 신규 -->
+          <th>예열시작시간</th>
+          <th>예열종료시간</th>
         </tr>
       </thead>
+      <tbody id="result-body"></tbody>
     </table>
-  </main>
+  </div>
 
-  <script>
-    (async function () {
-      const $input = document.getElementById('search-input');
-      const $btn = document.getElementById('search-btn');
-      const $body = document.getElementById('result-body');
-      const $status = document.getElementById('search-status');
-
-      let markets = [];
-
-      async function loadMarkets() {
-        try {
-          const r = await fetch('/api/upbit/market/all');
-          const j = await r.json();
-          if (!j.ok) throw new Error('마켓 불러오기 실패');
-          markets = j.data;
-          $status.textContent = `총 ${markets.length}개 마켓 로드됨`;
-        } catch (e) {
-          console.error(e);
-          $status.textContent = '마켓 목록 불러오기 실패';
-        }
-      }
-
-      function findMarketCodes(query) {
-        if (!query) return [];
-        query = query.trim().toLowerCase();
-        const tokens = query.split(/\s+/).filter(Boolean);
-        return markets
-          .filter(m => {
-            const text = `${m.market} ${m.korean_name} ${m.english_name}`.toLowerCase();
-            return tokens.every(t => text.includes(t));
-          })
-          .slice(0, 20)
-          .map(m => m.market);
-      }
-
-      async function fetchTickers(codes) {
-        if (!codes.length) return [];
-        const params = new URLSearchParams({ markets: codes.join(',') });
-        const r = await fetch('/api/upbit/ticker?' + params.toString());
-        const j = await r.json();
-        if (!j.ok) throw new Error('티커 응답 오류');
-        return j.data;
-      }
-
-      function renderRows(items) {
-        $body.innerHTML = '';
-        if (!items.length) {
-          $status.textContent = '검색 결과 없음';
-          return;
-        }
-        $status.textContent = `검색 결과 ${items.length}개`;
-
-        for (const t of items) {
-          const rate = (t.change_rate * 100).toFixed(2);
-          const color = rate > 0 ? '#ff3b3b' : rate < 0 ? '#00ffa3' : '#fff';
-          const tr = document.createElement('tr');
-          tr.innerHTML = `
-            <td>${t.market}</td>
-            <td>${t.trade_price.toLocaleString()}</td>
-            <td style="color:${color};">${rate}%</td>
-            <td>${Math.round(t.acc_trade_price_24h).toLocaleString()}</td>
-          `;
-          $body.appendChild(tr);
-        }
-      }
-
-      async function runSearch() {
-        try {
-          $status.textContent = '검색 중...';
-          const codes = findMarketCodes($input.value);
-          const tickers = await fetchTickers(codes);
-          renderRows(tickers);
-        } catch (e) {
-          console.error(e);
-          $status.textContent = '검색 실패';
-        }
-      }
-
-      $btn.addEventListener('click', runSearch);
-      $input.addEventListener('keydown', e => {
-        if (e.key === 'Enter') runSearch();
-      });
-
-      await loadMarkets();
-    })();
-  </script>
+  <!-- JS는 **한 번만** 로드 -->
+  <script defer src="/js/app.js"></script>
 </body>
 </html>
