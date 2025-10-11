@@ -3,7 +3,7 @@ export default async function handler(req, res) {
   if (!markets) return res.status(400).json({ ok:false, error:"markets required" });
   try {
     const url = "https://api.upbit.com/v1/ticker?markets=" + encodeURIComponent(markets);
-    const r = await fetch(url, { headers: { Accept: "application/json" }});
+    const r = await fetch(url, { headers: { Accept: "application/json" } });
     if (!r.ok) return res.status(r.status).json({ ok:false, from:"upbit" });
     const data = await r.json();
     res.setHeader("Cache-Control", "s-maxage=3, stale-while-revalidate=30");
