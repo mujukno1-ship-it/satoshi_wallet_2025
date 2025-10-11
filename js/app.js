@@ -16,6 +16,10 @@ async function fetchKRWMarkets() {
   const res = await fetch('/api/market/all'); // 서버 라우트가 업비트 /v1/market/all 프록시
   if (!res.ok) throw new Error('market/all 요청 실패');
   const all = await res.json();
+// 로드 타이밍 보강 (있어도 또 넣어도 무해)
+document.addEventListener('DOMContentLoaded', () => {
+  if (typeof bindSearchUI === 'function') bindSearchUI();
+});
 
   // ex) {market:"KRW-BTC", korean_name:"비트코인", ...}
   const krw = all
