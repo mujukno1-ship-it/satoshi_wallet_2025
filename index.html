@@ -2,100 +2,186 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>사토시의지갑</title>
-  <link rel="stylesheet" href="style.css" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>사토시의지갑 - 실시간 시세 조회</title>
+  <link rel="stylesheet" href="/style.css" />
+  <style>
+    body {
+      font-family: 'Pretendard', sans-serif;
+      background: #0a0a0a;
+      color: #fff;
+      margin: 0;
+      padding: 0;
+      text-align: center;
+    }
+    header {
+      background: #111;
+      padding: 20px;
+      border-bottom: 1px solid #333;
+    }
+    header h1 {
+      margin: 0;
+      color: #00ffa3;
+    }
+    #search-box {
+      margin: 20px auto;
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+    }
+    #search-input {
+      width: 240px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid #555;
+      background: #1b1b1b;
+      color: #fff;
+    }
+    #search-btn {
+      background: #00ffa3;
+      border: none;
+      color: #000;
+      font-weight: bold;
+      padding: 8px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    #search-btn:hover {
+      background: #00cc82;
+    }
+    #search-status {
+      color: #888;
+      margin-top: 10px;
+    }
+    table {
+      margin: 20px auto;
+      border-collapse: collapse;
+      width: 90%;
+      max-width: 800px;
+    }
+    th, td {
+      padding: 10px;
+      border-bottom: 1px solid #333;
+      text-align: center;
+    }
+    th {
+      color: #00ffa3;
+    }
+    tr:hover {
+      background: rgba(0, 255, 163, 0.05);
+    }
+  </style>
 </head>
 <body>
-  <div class="search-box">
-    <input id="search-input" placeholder="코인명/심볼 입력 (예: 비트, BTC, KRW-BTC)" />
-    <button id="search-btn">검색</button>
-  </div>
+  <header>
+    <h1>💰 사토시의지갑 (Satoshi Wallet)</h1>
+    <div id="search-box">
+      <input id="search-input" placeholder="코인명/심볼 (예: 비트, BTC, KRW-BTC)" />
+      <button id="search-btn">검색</button>
+    </div>
+    <div id="search-status">검색 대기 중...</div>
+  </header>
 
-  <div class="table-wrap">
+  <main>
     <table>
       <thead>
         <tr>
           <th>코인명</th>
-          <th class="right">현재가</th>
-          <th class="right">변동률</th>
+          <th>현재가 (KRW)</th>
+          <th>변동률</th>
+          <th>거래대금(24h)</th>
         </tr>
       </thead>
-      <tbody id="result-body">
-        <tr><td colspan="3" class="center">검색 결과 없음</td></tr>
-      </tbody>
+      <tbody id="result-body"></tbody>
     </table>
-  </div>
+  </main>
 
-<script>
-(() => {
-  const API = "/api/upbit";               // ✅ 업비트 분리 경로
-  const fmt = new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 2 });
-  let meta = [];
+  <script>
+    (async function () {
+      const $input = document.getElementById('search-input');
+      const $btn = document.getElementById('search-btn');
+      const $body = document.getElementById('result-body');
+      const $status = document.getElementById('search-status');
 
-async function getMeta() {
-  const r = await fetch("/api/upbit/market/all");
-  if (!r.ok) throw new Error("market/all " + r.status);
-  const j = await r.json();
-  return (j.data || []);
-}
+      let markets = [];
 
-async function getTickers(markets) {
-  const qs = new URLSearchParams({ markets: markets.join(",") }).toString();
-  const r = await fetch("/api/upbit/ticker?" + qs);
-  if (!r.ok) throw new Error("ticker " + r.status);
-  const j = await r.json();
-  return (j.data || []);
-}
- 
+      async function loadMarkets() {
+        try {
+          const r = await fetch('/api/upbit/market/all');
+          const j = await r.json();
+          if (!j.ok) throw new Error('마켓 불러오기 실패');
+          markets = j.data;
+          $status.textContent = `총 ${markets.length}개 마켓 로드됨`;
+        } catch (e) {
+          console.error(e);
+          $status.textContent = '마켓 목록 불러오기 실패';
+        }
+      }
 
-  async function runSearch(q) {
-    const $tbody = document.getElementById("result-body");
-    const query = (q || "").trim().toLowerCase();
-    if (!query) {
-      $tbody.innerHTML = `<tr><td colspan="3" class="center">검색 결과 없음</td></tr>`;
-      return;
-    }
+      function findMarketCodes(query) {
+        if (!query) return [];
+        query = query.trim().toLowerCase();
+        const tokens = query.split(/\s+/).filter(Boolean);
+        return markets
+          .filter(m => {
+            const text = `${m.market} ${m.korean_name} ${m.english_name}`.toLowerCase();
+            return tokens.every(t => text.includes(t));
+          })
+          .slice(0, 20)
+          .map(m => m.market);
+      }
 
-    let list = await getMeta();
-    const matched = list.filter(x => {
-      const sym = x.market.replace("KRW-","");
-      return x.korean_name.toLowerCase().includes(query) ||
-             x.english_name.toLowerCase().includes(query) ||
-             x.market.toLowerCase().includes(query) ||
-             sym.toLowerCase().includes(query);
-    }).slice(0, 15);
+      async function fetchTickers(codes) {
+        if (!codes.length) return [];
+        const params = new URLSearchParams({ markets: codes.join(',') });
+        const r = await fetch('/api/upbit/ticker?' + params.toString());
+        const j = await r.json();
+        if (!j.ok) throw new Error('티커 응답 오류');
+        return j.data;
+      }
 
-    if (!matched.length) {
-      $tbody.innerHTML = `<tr><td colspan="3" class="center">검색 결과 없음</td></tr>`;
-      return;
-    }
+      function renderRows(items) {
+        $body.innerHTML = '';
+        if (!items.length) {
+          $status.textContent = '검색 결과 없음';
+          return;
+        }
+        $status.textContent = `검색 결과 ${items.length}개`;
 
-    const tickers = await getTickers(matched.map(x => x.market));
-    const map = new Map(matched.map(x => [x.market, x]));
+        for (const t of items) {
+          const rate = (t.change_rate * 100).toFixed(2);
+          const color = rate > 0 ? '#ff3b3b' : rate < 0 ? '#00ffa3' : '#fff';
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${t.market}</td>
+            <td>${t.trade_price.toLocaleString()}</td>
+            <td style="color:${color};">${rate}%</td>
+            <td>${Math.round(t.acc_trade_price_24h).toLocaleString()}</td>
+          `;
+          $body.appendChild(tr);
+        }
+      }
 
-    const rows = tickers.map(t => {
-      const m = map.get(t.market) || { korean_name: t.market };
-      const rate = (t.signed_change_rate ?? 0) * 100;
-      return `<tr>
-        <td>${m.korean_name} (${t.market.replace("KRW-","")})</td>
-        <td class="right">${fmt.format(t.trade_price ?? 0)} 원</td>
-        <td class="right ${rate>=0 ? "good":"bad"}">${rate.toFixed(2)}%</td>
-      </tr>`;
-    }).join("");
+      async function runSearch() {
+        try {
+          $status.textContent = '검색 중...';
+          const codes = findMarketCodes($input.value);
+          const tickers = await fetchTickers(codes);
+          renderRows(tickers);
+        } catch (e) {
+          console.error(e);
+          $status.textContent = '검색 실패';
+        }
+      }
 
-    $tbody.innerHTML = rows;
-  }
+      $btn.addEventListener('click', runSearch);
+      $input.addEventListener('keydown', e => {
+        if (e.key === 'Enter') runSearch();
+      });
 
-  document.addEventListener("DOMContentLoaded", () => {
-    const $input = document.getElementById("search-input");
-    const $btn = document.getElementById("search-btn");
-    const act = () => runSearch($input.value);
-    $btn.addEventListener("click", act);
-    $input.addEventListener("keydown", e => e.key === "Enter" && act());
-    let t=null; $input.addEventListener("input", () => { clearTimeout(t); t=setTimeout(act, 300); });
-    console.log("[search] ready");
-  });
-})();
-</script>
+      await loadMarkets();
+    })();
+  </script>
 </body>
 </html>
