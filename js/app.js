@@ -79,3 +79,20 @@ async function pollSpikes() {
     setTimeout(pollSpikes, 2000);
   }
 }
+(function ensureSearchWiring(){
+  const retry = () => {
+    const input = document.getElementById('search-input');
+    const btn = document.getElementById('search-btn');
+    if (!input || !btn) return setTimeout(retry, 300);
+
+    if (!btn.__wired) {
+      btn.addEventListener('click', () => runSearch && runSearch(input.value));
+      input.addEventListener('keydown', (e)=>{ if(e.key==='Enter' && runSearch) runSearch(input.value); });
+      let t=null;
+      input.addEventListener('input', ()=>{ clearTimeout(t); t=setTimeout(()=>runSearch && runSearch(input.value),300); });
+      btn.__wired = true;
+      console.log('[search] wiring complete');
+    }
+  };
+  retry();
+})();
