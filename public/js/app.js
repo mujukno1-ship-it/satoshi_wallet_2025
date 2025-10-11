@@ -102,6 +102,25 @@ async function runSearch() {
         </tr>
       `;
     }).join('');
+// 쩔어 한마디 (AI 코멘트)
+let zzzComment = '';
+if (ticks.length > 0) {
+  const avgChange = ticks
+    .map(t => t.signed_change_rate * 100)
+    .filter(v => !isNaN(v))
+    .reduce((a, b) => a + b, 0) / ticks.length;
+
+  if (avgChange > 3) zzzComment = '🔥 강한 상승세! 지금은 관망보다 단타 유리!';
+  else if (avgChange > 0) zzzComment = '📈 완만한 상승 중... 눌림 매수 구간 체크!';
+  else if (avgChange > -3) zzzComment = '⚖️ 조정 흐름, 급락보단 횡보!';
+  else zzzComment = '🚨 하락 압력 강함, 무리한 진입 금지!';
+} else {
+  zzzComment = '🤔 검색 결과가 없어요. 다른 코인을 입력해보세요!';
+}
+
+// 화면에 표시
+const statusEl = document.getElementById('search-status');
+statusEl.textContent = `쩔어 한마디: ${zzzComment}`;
 
     tbody.innerHTML = rows || '<tr><td colspan="8" style="text-align:center; opacity:.7">검색 결과 없음</td></tr>';
     count.textContent = `검색 결과 ${ticks.length}개`;
