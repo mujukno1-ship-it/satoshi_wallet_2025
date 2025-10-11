@@ -89,18 +89,20 @@ async function runSearch() {
 
       const lv = buildLevels(price);
 
-      return `
-        <tr>
-          <td>${t.market}</td>
-          <td style="text-align:right">${fmt(price)}</td>
-          <td style="text-align:right">${changeRate}</td>
-          <td style="text-align:right">${fmt(Math.round(lv.buy))}</td>
-          <td style="text-align:right">${fmt(Math.round(lv.sell))}</td>
-          <td style="text-align:right; color:#ff5858">${fmt(Math.round(lv.stop))}</td>
-          <td>${fmtTime(lv.start)}</td>
-          <td>${fmtTime(lv.end)}</td>
-        </tr>
-      `;
+return `
+  <tr>
+    <td>${t.market}</td>
+    <td style="text-align:right">${fmt(price)}</td>
+    <td style="text-align:right">${fmt(changeRate)}%</td>
+    <td style="text-align:right;color:#00ff99">${fmt(Math.round(lv.buy))}</td>
+    <td style="text-align:right;color:#58a6ff">${fmt(Math.round(lv.sell))}</td>
+    <td style="text-align:right;color:#ff5858">${fmt(Math.round(lv.stop))}</td>
+    <td style="text-align:center;color:${riskColor}">${riskText}</td>
+    <td>${fmtTime(lv.start)}</td>
+    <td>${fmtTime(lv.end)}</td>
+  </tr>
+`;
+      
     }).join('');
 // 쩔어 한마디 (AI 코멘트)
 let zzzComment = '';
