@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>사토시의지갑</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="search-box">
+    <input id="search-input" placeholder="코인명/심볼 입력 (예: 비트, BTC)" />
+    <button id="search-btn">검색</button>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>코인명</th><th>현재가</th><th>변동률</th>
+      </tr>
+    </thead>
+    <tbody id="result-body"></tbody>
+  </table>
+
+<script>
+(() => {
+  const API = "/api/upbit";
+  const fmt = new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 2 });
+  let meta = [];
+
+  async function getMeta() {
+    if (meta.length) return meta;
+    const r = await fetch(`${API}/market/all`);
+    const j = await r.json();
+    meta = j.data.filter(x => x.market.startsWith("KRW-"));
+    return meta;
+  }
+
+  async function getTickers(markets) {
+    const qs = new URLSearchParams({ markets: markets.join(",") }).toString();
+    const r = await fetch(`${API}/ticker?${qs}`);
+    const j = await r.json();
+    return j.data;
+  }
+
+  async function runSearch(q) {
+    const $tbody = document.getElementById("result-body");
+    const query = q.trim().toLowerCase();
+    if (!query) return $tbody.innerHTML = `<tr><td colspan="3">검색 결과 없음</td></tr>`;
+    const list = (await getMeta()).filter(x =>
+      x.korean_name.includes(query) ||
+      x.english_name.toLowerCase().includes(query) ||
+      x.market.includes(query)
+    ).slice(0, 10);
+
+    if (!list.length) return $tbody.innerHTML = `<tr><td colspan="3">검색 결과 없음</td></tr>`;
+
+    const tickers = await getTickers(list.map(x => x.market));
+    const rows = tickers.map(t => {
+      const m = list.find(x => x.market === t.market);
+      const rate = (t.signed_change_rate * 100).toFixed(2);
+      return `<tr>
+        <td>${m.korean_name} (${m.market.replace("KRW-", "")})</td>
+        <td style="text-align:right">${fmt.format(t.trade_price)} 원</td>
+        <td style="text-align:right">${rate}%</td>
+      </tr>`;
+    }).join("");
+    $tbody.innerHTML = rows;
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    const $input = document.getElementById("search-input");
+    const $btn = document.getElementById("search-btn");
+    $btn.addEventListener("click", () => runSearch($input.value));
+    $input.addEventListener("keydown", e => e.key === "Enter" && runSearch($input.value));
+  });
+})();
+</script>
+</body>
+</html>
