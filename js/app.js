@@ -1,100 +1,110 @@
-// ↓ 1) KRW-티커만 골라내고, 글자 규칙에 안 맞는 건 자동 제외
-function validateMarket(m) {
-  // KRW-로 시작 + 뒤는 영문/숫자/하이픈 금지
-  return /^(KRW)-[A-Z0-9]+$/.test(m);
-}
+/***********************
+ * 검색 로직 (정의만)
+ ***********************/
 
-// ↓ 2) 배열을 여러 묶음으로 나누기 (요청 한 번에 90개씩 권장)
-function chunk(arr, size = 90) {
-  const out = [];
-  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
-  return out;
-}
+// 유틸
+const fmtKRW = new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 8 });
 
-// ↓ 3) 마켓 전체 받아서 KRW 전용 티커 리스트 만들기
-async function fetchKRWMarkets() {
-  const res = await fetch('/api/market/all'); // 서버 라우트가 업비트 /v1/market/all 프록시
-  if (!res.ok) throw new Error('market/all 요청 실패');
+// 업비트 마켓 메타 (KRW만)
+let MARKET_META = [];
+
+async function fetchMarketMeta() {
+  const res = await fetch("/api/market/all");
+  if (!res.ok) throw new Error("market/all 요청 실패");
   const all = await res.json();
-// 로드 타이밍 보강 (있어도 또 넣어도 무해)
-document.addEventListener('DOMContentLoaded', () => {
-  if (typeof bindSearchUI === 'function') bindSearchUI();
-});
-
-  // ex) {market:"KRW-BTC", korean_name:"비트코인", ...}
-  const krw = all
-    .map(x => x.market?.trim().toUpperCase())
-    .filter(Boolean)
-    .filter(m => m.startsWith('KRW-'))
-    .filter(validateMarket);
-
+  MARKET_META = all
+    .filter((x) => x.market && x.market.startsWith("KRW-"))
+    .map((x) => ({
+      market: String(x.market).toUpperCase().trim(),
+      korean_name: (x.korean_name || "").trim(),
+      english_name: (x.english_name || "").trim(),
+    }));
   // 중복 제거
-  return Array.from(new Set(krw));
+  const seen = new Set();
+  MARKET_META = MARKET_META.filter((x) => (seen.has(x.market) ? false : seen.add(x.market)));
+  console.log("[search] meta loaded:", MARKET_META.length);
 }
 
-// ↓ 4) 안전한 방법으로 티커 가격들 가져오기
-async function fetchTickers() {
-  // 4-1) KRW 티커 목록 확보
-  const markets = await fetchKRWMarkets();
+async function fetchTickers(markets) {
+  if (!markets || markets.length === 0) return [];
+  const list = Array.from(new Set(markets)).slice(0, 90); // 안전범위
+  const qs = new URLSearchParams({ markets: list.join(",") }).toString();
+  const url = `/api/ticker?${qs}`;
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`ticker 오류 ${r.status}`);
+  return r.json();
+}
 
-  // 혹시 잘못된 값들이 있었다면 콘솔에서 확인
-  const invalids = markets.filter(m => !validateMarket(m));
-  if (invalids.length) {
-    console.warn('제외된 잘못된 티커:', invalids);
+// 핵심: 검색 실행
+async function runSearch(keyword) {
+  const $tbody = document.getElementById("result-body");
+  const q = (keyword || "").toString().trim();
+  if (!$tbody) return;
+
+  if (!q) {
+    $tbody.innerHTML = `<tr><td colspan="10" style="text-align:center">검색 결과 없음</td></tr>`;
+    return;
   }
 
-  // 4-2) 90개씩 잘라 여러 번 요청
-  const chunks = chunk(markets, 90);
-  const allResults = [];
-
-  for (const c of chunks) {
-    // 절대 직접 인코딩하지 말고 URLSearchParams 사용!
-    const qs = new URLSearchParams({ markets: c.join(',') }).toString();
-    const url = `/api/ticker?${qs}`;
-
-    const res = await fetch(url);
-    if (!res.ok) {
-      console.error('fetchTickers 오류:', res.status, url);
-      // 특정 청크가 문제면 어떤 티커가 원인인지 확인하기 쉽게 로그
-      console.error('문제 청크 내용:', c);
-      throw new Error(`HTTP ${res.status}`);
+  // 메타 없으면 1회 로드
+  if (MARKET_META.length === 0) {
+    try {
+      await fetchMarketMeta();
+    } catch (e) {
+      console.error(e);
+      $tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;color:#f55">마켓 목록 로드 실패</td></tr>`;
+      return;
     }
-    const j = await res.json();
-    if (Array.isArray(j)) allResults.push(...j);
   }
 
-  return allResults;
-}
+  const norm = q.toLowerCase();
+  const matched = MARKET_META.filter((x) => {
+    const sym = x.market.replace("KRW-", "");
+    return (
+      x.korean_name.toLowerCase().includes(norm) ||
+      x.english_name.toLowerCase().includes(norm) ||
+      x.market.toLowerCase().includes(norm) ||
+      sym.toLowerCase().includes(norm)
+    );
+  });
 
-// ↓ 5) 주기 폴링 호출부 예시 (기존 pollSpikes에서 사용)
-async function pollSpikes() {
+  if (matched.length === 0) {
+    $tbody.innerHTML = `<tr><td colspan="10" style="text-align:center">검색 결과 없음</td></tr>`;
+    return;
+  }
+
+  const targets = matched.slice(0, 20).map((x) => x.market);
+
+  let tickers = [];
   try {
-    const data = await fetchTickers();
-    // TODO: data로 급등/급락 갱신하는 기존 로직 호출
-    updateUIWithTickers(data); // ← 기존 함수명에 맞게 사용
+    tickers = await fetchTickers(targets);
   } catch (e) {
-    console.error('pollSpikes 실패:', e);
-  } finally {
-    // 폴링 주기 (기존 값 유지; 너무 짧으면 과부하)
-    setTimeout(pollSpikes, 2000);
+    console.error(e);
+    $tbody.innerHTML = `<tr><td colspan="10" style="text-align:center;color:#f55">시세 조회 실패</td></tr>`;
+    return;
   }
-}
-(function ensureSearchWiring(){
-  const retry = () => {
-    const input = document.getElementById('search-input');
-    const btn = document.getElementById('search-btn');
-    if (!input || !btn) return setTimeout(retry, 300);
 
-    if (!btn.__wired) {
-      btn.addEventListener('click', () => runSearch && runSearch(input.value));
-      input.addEventListener('keydown', (e)=>{ if(e.key==='Enter' && runSearch) runSearch(input.value); });
-      let t=null;
-      input.addEventListener('input', ()=>{ clearTimeout(t); t=setTimeout(()=>runSearch && runSearch(input.value),300); });
-      btn.__wired = true;
-      console.log('[search] wiring complete');
-    }
-  };
-  retry();
-})();
-// runSearch를 전역에 노출 (HTML에서 바로 호출 가능)
+  const mapMeta = new Map(MARKET_META.map((x) => [x.market, x]));
+  const rows = tickers.map((t) => {
+    const m = mapMeta.get(t.market) || { korean_name: t.market, english_name: "" };
+    const name = `${m.korean_name} (${t.market.replace("KRW-", "")})`;
+    const price = t.trade_price ?? 0;
+    const chg = (t.signed_change_rate ?? 0) * 100;
+
+    return `
+      <tr>
+        <td>${name}</td>
+        <td style="text-align:right">${fmtKRW.format(price)}원</td>
+        <td style="text-align:right">${chg.toFixed(2)}%</td>
+        <td>-</td><td>-</td><td>-</td>
+        <td>-</td><td>-</td><td>-</td><td>-</td>
+      </tr>
+    `;
+  });
+
+  $tbody.innerHTML = rows.join("");
+}
+
+// ✅ 전역 노출 (index.html에서 바인딩용)
 window.runSearch = runSearch;
+console.log("[search] functions ready");
