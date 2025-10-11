@@ -40,5 +40,23 @@
   </main>
 
   <script type="module" src="./js/app.js"></script>
+ <!-- 검색 스크립트 로드 -->
+<script defer src="/js/app.js"></script>
+
+<!-- 로드 확인 & 바인딩 보강 -->
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    console.log('[search] DOM ready');
+    if (typeof bindSearchUI === 'function') {
+      bindSearchUI();
+      console.log('[search] bindSearchUI attached');
+    } else {
+      console.warn('[search] bindSearchUI not found. Check /js/app.js path.');
+    }
+  });
+</script>
+</body>
+</html>
+ 
 </body>
 </html>
