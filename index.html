@@ -82,6 +82,32 @@
     </div>
     <div id="search-status">검색 대기 중...</div>
   </header>
+<!-- 검색 입력 -->
+<div style="display:flex; gap:8px; align-items:center; margin:16px 0;">
+  <input id="search-input" placeholder="코인명/심볼 입력 (예: 비트, BTC, KRW-BTC)" />
+  <button id="search-btn">검색</button>
+  <span id="search-count" style="opacity:.7; margin-left:8px;"></span>
+</div>
+
+<!-- 결과 테이블 -->
+<table class="tbl">
+  <thead>
+    <tr>
+      <th>코인명</th>
+      <th>현재가 (KRW)</th>
+      <th>변동률</th>
+      <th>매수</th>
+      <th>매도</th>
+      <th>손절</th>
+      <th>예열시작시간</th>
+      <th>예열종시간</th>
+    </tr>
+  </thead>
+  <tbody id="result-body"></tbody>
+</table>
+
+<!-- 아래 한 줄로 js 연결만 확인 -->
+<script defer src="/js/app.js"></script>
 
   <main>
     <table>
