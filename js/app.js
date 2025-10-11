@@ -96,3 +96,5 @@ async function pollSpikes() {
   };
   retry();
 })();
+// runSearch를 전역에 노출 (HTML에서 바로 호출 가능)
+window.runSearch = runSearch;
