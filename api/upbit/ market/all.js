@@ -1,9 +1,13 @@
 export default async function handler(req, res) {
   try {
-    const response = await fetch("https://api.upbit.com/v1/market/all?isDetails=false");
-    const data = await response.json();
+    const r = await fetch("https://api.upbit.com/v1/market/all?isDetails=false", {
+      headers: { Accept: "application/json" },
+    });
+    if (!r.ok) return res.status(r.status).json({ ok: false });
+    const data = await r.json();
+    res.setHeader("Cache-Control", "s-maxage=60, stale-while-revalidate=300");
     res.status(200).json({ ok: true, data });
-  } catch (err) {
-    res.status(500).json({ ok: false, error: err.message });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: String(e) });
   }
 }
