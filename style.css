@@ -1,6 +1,6 @@
 :root { color-scheme: dark; }
 * { box-sizing: border-box; }
-body { margin: 24px; font-family: "Noto Sans KR", sans-serif; background:#0f1115; color:#e7eaf3; }
+body { margin: 24px; font-family: "Noto Sans KR", Arial, sans-serif; background:#0f1115; color:#e7eaf3; }
 .search-box { display:flex; gap:8px; align-items:center; margin-bottom:16px; }
 .search-box input { width:420px; padding:10px 12px; border:1px solid #2a2f3a; border-radius:10px; background:#121520; color:#e7eaf3; }
 .search-box button { padding:10px 14px; border:0; border-radius:10px; background:#2563eb; color:#fff; cursor:pointer; }
