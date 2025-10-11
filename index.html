@@ -1,5 +1,3 @@
-const API = "/api/upbit";
-
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -9,70 +7,94 @@ const API = "/api/upbit";
 </head>
 <body>
   <div class="search-box">
-    <input id="search-input" placeholder="코인명/심볼 입력 (예: 비트, BTC)" />
+    <input id="search-input" placeholder="코인명/심볼 입력 (예: 비트, BTC, KRW-BTC)" />
     <button id="search-btn">검색</button>
   </div>
 
-  <table>
-    <thead>
-      <tr>
-        <th>코인명</th><th>현재가</th><th>변동률</th>
-      </tr>
-    </thead>
-    <tbody id="result-body"></tbody>
-  </table>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>코인명</th>
+          <th class="right">현재가</th>
+          <th class="right">변동률</th>
+        </tr>
+      </thead>
+      <tbody id="result-body">
+        <tr><td colspan="3" class="center">검색 결과 없음</td></tr>
+      </tbody>
+    </table>
+  </div>
 
 <script>
 (() => {
-  const API = "/api/upbit";
+  const API = "/api/upbit";               // ✅ 업비트 분리 경로
   const fmt = new Intl.NumberFormat("ko-KR", { maximumFractionDigits: 2 });
   let meta = [];
 
   async function getMeta() {
     if (meta.length) return meta;
     const r = await fetch(`${API}/market/all`);
+    if (!r.ok) throw new Error("market/all 실패");
     const j = await r.json();
-    meta = j.data.filter(x => x.market.startsWith("KRW-"));
+    meta = (j.data || []).filter(x => x.market && x.market.startsWith("KRW-"));
     return meta;
   }
 
   async function getTickers(markets) {
     const qs = new URLSearchParams({ markets: markets.join(",") }).toString();
     const r = await fetch(`${API}/ticker?${qs}`);
+    if (!r.ok) throw new Error("ticker 실패");
     const j = await r.json();
-    return j.data;
+    return j.data || j; // 보호적 파싱
   }
 
   async function runSearch(q) {
     const $tbody = document.getElementById("result-body");
-    const query = q.trim().toLowerCase();
-    if (!query) return $tbody.innerHTML = `<tr><td colspan="3">검색 결과 없음</td></tr>`;
-    const list = (await getMeta()).filter(x =>
-      x.korean_name.includes(query) ||
-      x.english_name.toLowerCase().includes(query) ||
-      x.market.includes(query)
-    ).slice(0, 10);
+    const query = (q || "").trim().toLowerCase();
+    if (!query) {
+      $tbody.innerHTML = `<tr><td colspan="3" class="center">검색 결과 없음</td></tr>`;
+      return;
+    }
 
-    if (!list.length) return $tbody.innerHTML = `<tr><td colspan="3">검색 결과 없음</td></tr>`;
+    let list = await getMeta();
+    const matched = list.filter(x => {
+      const sym = x.market.replace("KRW-","");
+      return x.korean_name.toLowerCase().includes(query) ||
+             x.english_name.toLowerCase().includes(query) ||
+             x.market.toLowerCase().includes(query) ||
+             sym.toLowerCase().includes(query);
+    }).slice(0, 15);
 
-    const tickers = await getTickers(list.map(x => x.market));
+    if (!matched.length) {
+      $tbody.innerHTML = `<tr><td colspan="3" class="center">검색 결과 없음</td></tr>`;
+      return;
+    }
+
+    const tickers = await getTickers(matched.map(x => x.market));
+    const map = new Map(matched.map(x => [x.market, x]));
+
     const rows = tickers.map(t => {
-      const m = list.find(x => x.market === t.market);
-      const rate = (t.signed_change_rate * 100).toFixed(2);
+      const m = map.get(t.market) || { korean_name: t.market };
+      const rate = (t.signed_change_rate ?? 0) * 100;
       return `<tr>
-        <td>${m.korean_name} (${m.market.replace("KRW-", "")})</td>
-        <td style="text-align:right">${fmt.format(t.trade_price)} 원</td>
-        <td style="text-align:right">${rate}%</td>
+        <td>${m.korean_name} (${t.market.replace("KRW-","")})</td>
+        <td class="right">${fmt.format(t.trade_price ?? 0)} 원</td>
+        <td class="right ${rate>=0 ? "good":"bad"}">${rate.toFixed(2)}%</td>
       </tr>`;
     }).join("");
+
     $tbody.innerHTML = rows;
   }
 
   document.addEventListener("DOMContentLoaded", () => {
     const $input = document.getElementById("search-input");
     const $btn = document.getElementById("search-btn");
-    $btn.addEventListener("click", () => runSearch($input.value));
-    $input.addEventListener("keydown", e => e.key === "Enter" && runSearch($input.value));
+    const act = () => runSearch($input.value);
+    $btn.addEventListener("click", act);
+    $input.addEventListener("keydown", e => e.key === "Enter" && act());
+    let t=null; $input.addEventListener("input", () => { clearTimeout(t); t=setTimeout(act, 300); });
+    console.log("[search] ready");
   });
 })();
 </script>
