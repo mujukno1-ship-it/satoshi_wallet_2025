@@ -1,4 +1,1 @@
-fastapi
-uvicorn[standard]
-httpx
-sse-starlette
+
