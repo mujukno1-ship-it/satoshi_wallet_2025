@@ -88,6 +88,28 @@ async function runSearch() {
       const changeRate = (t.change_rate * 100).toFixed(2) + '%';
 
       const lv = buildLevels(price);
+// 실시간 매수·매도·손절 계산 + 위험도 평가
+const lv = {
+  buy: price * 0.99,   // -1%
+  sell: price * 1.01,  // +1%
+  stop: price * 0.98,  // -2%
+  start: new Date(Date.now() + 5 * 60 * 1000),
+  end: new Date(Date.now() + 25 * 60 * 1000),
+};
+
+// 위험도 계산 (변동률 기반)
+let riskText = '';
+let riskColor = '#fff';
+if (changeRate > 5) {
+  riskText = '🔥 고위험';
+  riskColor = '#ff4444';
+} else if (changeRate > 2) {
+  riskText = '⚠️ 중간위험';
+  riskColor = '#ffaa00';
+} else {
+  riskText = '✅ 저위험';
+  riskColor = '#00ff88';
+}
 
 return `
   <tr>
